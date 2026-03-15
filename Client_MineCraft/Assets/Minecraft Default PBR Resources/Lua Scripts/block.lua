@@ -1,4 +1,4 @@
-local behaviour = {} -- 默认行为
+local behaviour = {} -- 기본 동작
 
 function behaviour:init(world, block)
     self.world = world
@@ -46,13 +46,10 @@ function behaviour:get_block_data()
     return self.__block
 end
 
---- 创建一个方块行为对象。
----
---- 如果不传入 `base` 参数，返回的对象将具有默认行为。
----
---- 如果传入 `base` 参数，返回的对象将会继承 `base` 的所有行为。
----
---- @param base? table
+--- 블록 동작 객체를 생성합니다.
+---- `base` 인자를 전달하지 않으면 기본 동작 객체를 반환합니다. 
+---- `base` 인자를 전달하면 `base`의 모든 동작을 상속합니다.
+---- @param base? table
 --- @return table
 function create_block_behaviour(base)
     return setmetatable({

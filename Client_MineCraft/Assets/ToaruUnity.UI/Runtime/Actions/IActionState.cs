@@ -1,7 +1,6 @@
 ﻿namespace ToaruUnity.UI
 {
     /// <summary>
-    /// 表示一系列的状态
-    /// </summary>
+    /    /// </summary>
     public interface IActionState { }
 }

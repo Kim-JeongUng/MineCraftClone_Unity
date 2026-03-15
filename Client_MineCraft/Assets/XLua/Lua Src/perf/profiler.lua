@@ -115,11 +115,11 @@ local function report(sort_by)
 end
 
 return {
-    --开始统计
+    --통계 시작
     start = start,
-    --获取报告，start和stop之间可以多次调用，参数sort_by类型是string，可以是'TOTAL','AVERAGE', 'CALLED'
+    --리포트 가져오기: start~stop 사이 여러 번 호출 가능, sort_by는 TOTAL/AVERAGE/CALLED
     report = report,
-    --停止统计
+    --통계 중지
     stop = stop
 }
 

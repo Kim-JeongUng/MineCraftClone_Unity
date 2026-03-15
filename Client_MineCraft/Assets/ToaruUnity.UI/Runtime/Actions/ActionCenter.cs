@@ -7,43 +7,42 @@ using UnityEngine.Profiling;
 namespace ToaruUnity.UI
 {
     /// <summary>
-    /// 表示界面逻辑的操作中心
+    /// 중심 
     /// </summary>
     public abstract class ActionCenter
     {
         internal sealed class ParameterCountException : Exception
         {
             public ParameterCountException(MethodInfo method, string message)
-                : base($"{message}\n在({method.DeclaringType}) : {method}") { }
+                : base($"{message}\n({method.DeclaringType}) : {method}") { }
         }
 
         internal sealed class ReturnTypeMismatchException : Exception
         {
             public ReturnTypeMismatchException(MethodInfo method, string message)
-                : base($"{message}\n在({method.DeclaringType}) : {method}") { }
+                : base($"{message}\n({method.DeclaringType}) : {method}") { }
         }
 
         internal sealed class InvalidTypeInjectionException : Exception
         {
             public InvalidTypeInjectionException(Type type, string message)
-                : base($"{message}\n类型: {type}") { }
+                : base($"{message}\n: {type}") { }
         }
 
 
         /// <summary>
-        /// 当状态改变时的处理方法
-        /// </summary>
-        /// <param name="state">当前的状态</param>
+        /        /// </summary>
+        /// <param name="state"></param> 
         internal delegate void StateChangeHandler(IActionState state);
 
-        // 如果返回值为true，自动调用StateChangeHandler
+        // 만약반환true, StateChangeHandler 
         private delegate bool ActionHandler();
         private delegate bool ActionHandler<in T0>(T0 arg0);
         private delegate bool ActionHandler<in T0, in T1>(T0 arg0, T1 arg1);
         private delegate bool ActionHandler<in T0, in T1, in T2>(T0 arg0, T1 arg1, T2 arg2);
         private delegate bool ActionHandler<in T0, in T1, in T2, in T3>(T0 arg0, T1 arg1, T2 arg2, T3 arg3);
 
-        // 如果返回值为true，自动调用StateChangeHandler
+        // 만약반환true, StateChangeHandler 
         private delegate IEnumerator<bool> ActionHandlerCoroutine();
         private delegate IEnumerator<bool> ActionHandlerCoroutine<in T0>(T0 arg0);
         private delegate IEnumerator<bool> ActionHandlerCoroutine<in T0, in T1>(T0 arg0, T1 arg1);
@@ -59,30 +58,30 @@ namespace ToaruUnity.UI
         private IActionState m_State;
 
         /// <summary>
-        /// 获取对<see cref="IUIManager"/>的引用
+        /// 가져오기<see cref="IUIManager"/> 
         /// </summary>
         protected IUIManager Manager { get; private set; }
 
         /// <summary>
-        /// 获取ActionMap
+        /// 가져오기ActionMap 
         /// </summary>
         internal IEnumerable<KeyValuePair<string, Delegate>> ActionMap => m_ActionMap;
 
         /// <summary>
-        /// 获取操作的数量
+        /// 가져오기개수 
         /// </summary>
         public int ActionCount => m_ActionMap == null ? 0 : m_ActionMap.Count;
 
         /// <summary>
-        /// 获取当前执行的协程的数量
+        /// 가져오기개수 
         /// </summary>
         public int ExecutingCoroutineCount => m_Coroutines == null ? 0 : m_Coroutines.Count;
 
         /// <summary>
-        /// 获取指定名称的操作的信息
+        /// 가져오기 
         /// </summary>
-        /// <param name="actionName">查询的操作的名称</param>
-        /// <returns>如果查询到操作，则返回操作的信息对象；否则返回null</returns>
+        /// <param name="actionName">조회</param> 
+        /// <returns>만약조회, 반환객체; 반환null</returns> 
         public ActionInfo this[string actionName]
         {
             get
@@ -125,7 +124,7 @@ namespace ToaruUnity.UI
             }
             else
             {
-                Debug.LogWarning("未找到操作：" + name);
+                Debug.LogWarning("작업을 찾지 못함: " + name);
             }
         }
 
@@ -153,7 +152,7 @@ namespace ToaruUnity.UI
             }
             else
             {
-                Debug.LogWarning("未找到操作：" + name);
+                Debug.LogWarning("작업을 찾지 못함: " + name);
             }
         }
 
@@ -181,7 +180,7 @@ namespace ToaruUnity.UI
             }
             else
             {
-                Debug.LogWarning("未找到操作：" + name);
+                Debug.LogWarning("작업을 찾지 못함: " + name);
             }
         }
 
@@ -209,7 +208,7 @@ namespace ToaruUnity.UI
             }
             else
             {
-                Debug.LogWarning("未找到操作：" + name);
+                Debug.LogWarning("작업을 찾지 못함: " + name);
             }
         }
 
@@ -237,11 +236,11 @@ namespace ToaruUnity.UI
             }
             else
             {
-                Debug.LogWarning("未找到操作：" + name);
+                Debug.LogWarning("작업을 찾지 못함: " + name);
             }
         }
 
-        // 不重置StateChangeHandler
+        // 않StateChangeHandler 
         public void Reset()
         {
             m_Coroutines?.Clear();
@@ -250,27 +249,27 @@ namespace ToaruUnity.UI
 
 
         /// <summary>
-        /// 获取表示当前状态的对象，并将其转换为<typeparamref name="T"/>类型
+        /// 가져오기객체, <typeparamref name="T"/> 
         /// </summary>
-        /// <typeparam name="T">状态的类型，该类型必须为引用类型，且实现<see cref="IActionState"/>接口</typeparam>
-        /// <returns>经过类型转换后的状态对象</returns>
+        /// <typeparam name="T">, , <see cref="IActionState"/></typeparam> 
+        /// <returns>객체</returns> 
         public T GetState<T>() where T : class, IActionState { return m_State as T; }
 
         /// <summary>
-        /// 重写该方法，修改Action处理方法的匹配模式（默认为<see cref="BindingFlags.Instance"/> | <see cref="BindingFlags.Public"/>）。
-        /// 如果该方法返回<see cref="BindingFlags.Default"/>，则不会匹配任何方法。
+        /// , 수정Action(기본<see cref="BindingFlags.Instance"/> | <see cref="BindingFlags.Public"/>). 
+        /// 만약반환<see cref="BindingFlags.Default"/>, 않. 
         /// </summary>
         /// <returns></returns>
         protected virtual BindingFlags GetBindingFlagsForActionHandler() { return BindingFlags.Instance | BindingFlags.Public; }
 
         /// <summary>
-        /// 用于创建新的状态对象
+        /// 생성객체 
         /// </summary>
         /// <returns></returns>
         protected virtual IActionState CreateState() { return null; }
 
         /// <summary>
-        /// 用于重置状态对象
+        /// 객체 
         /// </summary>
         /// <param name="state"></param>
         protected virtual void ResetState(ref IActionState state) { }
@@ -370,7 +369,7 @@ namespace ToaruUnity.UI
                     ParameterInfo[] parameters = method.GetParameters();
 
                     if (parameters.Length > s_MaxParameterCount)
-                        throw new ParameterCountException(method, "参数数量必须在[0,4]范围内");
+                        throw new ParameterCountException(method, "매개변수 개수는 [0,4] 범위여야 합니다");
 
                     Type[] typeArguments = AllocTypeArray(parameters.Length);
 
@@ -413,10 +412,10 @@ namespace ToaruUnity.UI
             Type actionCenterType = (attrs[0] as InjectActionsAttribute).ActionCenterType;
 
             if (actionCenterType.IsAbstract)
-                throw new InvalidTypeInjectionException(actionCenterType, "注入的类型必须是非抽象类型");
+                throw new InvalidTypeInjectionException(actionCenterType, "주입 타입은 비추상 타입이어야 합니다");
 
             if (!actionCenterType.IsSubclassOf(typeof(ActionCenter)))
-                throw new InvalidTypeInjectionException(actionCenterType, "注入的类型必须派生自" + typeof(ActionCenter));
+                throw new InvalidTypeInjectionException(actionCenterType, "주입 타입은 다음을 상속해야 합니다: " + typeof(ActionCenter));
 
             ActionCenter center = Activator.CreateInstance(actionCenterType) as ActionCenter;
             center.Initialize(manager);
@@ -478,7 +477,7 @@ namespace ToaruUnity.UI
                     case 2: return typeof(ActionHandler<,>).MakeGenericType(typeArguments);
                     case 3: return typeof(ActionHandler<,,>).MakeGenericType(typeArguments);
                     case 4: return typeof(ActionHandler<,,,>).MakeGenericType(typeArguments);
-                    default: return null; // 永远不会发生
+                    default: return null; // 않 
                 }
             }
             else if (returnType == coroutineType)
@@ -490,12 +489,12 @@ namespace ToaruUnity.UI
                     case 2: return typeof(ActionHandlerCoroutine<,>).MakeGenericType(typeArguments);
                     case 3: return typeof(ActionHandlerCoroutine<,,>).MakeGenericType(typeArguments);
                     case 4: return typeof(ActionHandlerCoroutine<,,,>).MakeGenericType(typeArguments);
-                    default: return null; // 永远不会发生
+                    default: return null; // 않 
                 }
             }
             else
             {
-                throw new ReturnTypeMismatchException(method, $"返回值的类型必须为{boolType}、{coroutineType}类型中的一个");
+                throw new ReturnTypeMismatchException(method, $"반환형은 다음 중 하나여야 합니다: {boolType}、{coroutineType}의");
             }
         }
     }

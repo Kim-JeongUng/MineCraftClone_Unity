@@ -12,9 +12,7 @@ namespace Minecraft.Collections
             public TKey Key;
             public TValue Value;
             public int HashCode;
-            public LRUNode Before; // 双向链表的上一个节点
-            public LRUNode After; // 双向链表的下一个节点
-            public LRUNode Next; // 同一个桶中的下一个节点
+            public LRUNode Before;            public LRUNode After;            public LRUNode Next; // 의 
         }
 
 

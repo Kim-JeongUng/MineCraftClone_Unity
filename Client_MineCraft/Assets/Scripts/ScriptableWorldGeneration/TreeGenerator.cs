@@ -24,7 +24,7 @@ namespace Minecraft.ScriptableWorldGeneration
 
         protected bool CanTreeGrow(int x, int y, int z, BlockData[,,] blocks, int height)
         {
-            // 不超出世界边界
+            // 않월드경계 
             if (y < 1 || (y + height + 1) >= ChunkHeight)
             {
                 return false;
@@ -36,24 +36,22 @@ namespace Minecraft.ScriptableWorldGeneration
                 return false;
             }
 
-            // 检查所有方块可替换
+            // 모든블록교체 
             for (int by = y; by <= y + height + 1; by++)
             {
                 int xzSize = 1;
 
-                // 底端
                 if (by == y)
                 {
                     xzSize = 0;
                 }
 
-                // 顶端
                 if (by >= y + height - 1)
                 {
                     xzSize = 2;
                 }
 
-                // 检查这个平面所有方块可替换
+                // 모든블록교체 
                 for (int bx = x - xzSize; bx <= x + xzSize; bx++)
                 {
                     for (int bz = z - xzSize; bz <= z + xzSize; bz++)
@@ -82,7 +80,7 @@ namespace Minecraft.ScriptableWorldGeneration
             BlockData wood = world.BlockDataTable.GetBlock(m_WoodBlock);
             BlockData leaves = world.BlockDataTable.GetBlock(m_LeavesBlock);
 
-            // 生成叶子
+            // 생성 
             for (int ly = y + height - 3; ly <= y + height; ly++)
             {
                 int restHeight = ly - (y + height);
@@ -96,7 +94,7 @@ namespace Minecraft.ScriptableWorldGeneration
                     {
                         int zOffset = lz - z;
 
-                        // 不在边缘4个点
+                        // 않4 
                         if (Math.Abs(xOffset) != xzSize || Math.Abs(zOffset) != xzSize || (restHeight != 0 && random.Next(2) != 0))
                         {
                             ref BlockData block = ref blocks[lx, ly, lz];
@@ -110,7 +108,7 @@ namespace Minecraft.ScriptableWorldGeneration
                 }
             }
 
-            // 生成木头
+            // 생성 
             for (int wy = y; wy < y + height; wy++)
             {
                 ref BlockData block = ref blocks[x, wy, z];

@@ -7,7 +7,7 @@ using static Minecraft.WorldConsts;
 
 namespace Minecraft
 {
-    // 这里全部不加锁，因为一般只有距离玩家很远的区块才会在其他线程加载。
+    // 않, 거리플레이어로드. 
     public class Chunk : IWorldRWAccessor, IDisposable
     {
         public bool m_Accessible;
@@ -283,7 +283,7 @@ namespace Minecraft
             return m_HeightMap[x, z];
         }
 
-        // 一般在 Chunk 被 Build 以后调用一次
+        // Chunk Build 
         public void PostLightAllBlocks()
         {
             for (int x = 0; x < ChunkWidth; x++)

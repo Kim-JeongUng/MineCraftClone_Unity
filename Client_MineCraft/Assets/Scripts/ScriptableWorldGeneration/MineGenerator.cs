@@ -55,12 +55,11 @@ namespace Minecraft.ScriptableWorldGeneration
 
         public void Generate(int x, int y, int z, BlockData[,,] blocks, Random random, BlockData ore, int count)
         {
-            // 在xz平面上的方向
+            // xz방향 
             float angle = (float)random.NextDouble() * Mathf.PI;
             float xRange = Mathf.Sin(angle) * count / 8.0f;
             float zRange = Mathf.Cos(angle) * count / 8.0f;
 
-            // 起始点和结束点
             float startX = (x + 8) + xRange;
             float endX = (x + 8) - xRange;
             float startZ = (z + 8) + zRange;
@@ -70,20 +69,20 @@ namespace Minecraft.ScriptableWorldGeneration
 
             for (int i = 0; i < count; i++)
             {
-                // 插值参数
+                // 인자 
                 float t = (float)i / count;
 
-                // 椭球中心
+                // 타원체중심 
                 float centerX = Mathf.Lerp(startX, endX, t);
                 float centerY = Mathf.Lerp(startY, endY, t);
                 float centerZ = Mathf.Lerp(startZ, endZ, t);
 
-                // 椭球尺寸（可以看出 XZ 和 Y 尺寸一样，应该是球）
+                // 타원체( XZ Y , ) 
                 float scale = (float)random.NextDouble() * count / 16.0f;
                 float diameterXZ = (Mathf.Sin(Mathf.PI * t) + 1) * scale + 1;
                 float diameterY = (Mathf.Sin(Mathf.PI * t) + 1) * scale + 1;
 
-                // 椭球包围盒
+                // 타원체 
                 int minX = Mathf.FloorToInt(centerX - diameterXZ * 0.5f);
                 int minY = Mathf.FloorToInt(centerY - diameterY * 0.5f);
                 int minZ = Mathf.FloorToInt(centerZ - diameterXZ * 0.5f);
@@ -91,12 +90,12 @@ namespace Minecraft.ScriptableWorldGeneration
                 int maxY = Mathf.FloorToInt(centerY + diameterY * 0.5f);
                 int maxZ = Mathf.FloorToInt(centerZ + diameterXZ * 0.5f);
 
-                // 把这个椭球里的方块替换为矿石
+                // 타원체블록교체 
                 for (int dx = minX; dx <= maxX; dx++)
                 {
                     float xDist = (dx + 0.5f - centerX) / (diameterXZ * 0.5f);
 
-                    // 参考椭球方程
+                    // 타원체 
                     if (xDist * xDist < 1)
                     {
                         for (int dy = minY; dy <= maxY; dy++)
@@ -108,14 +107,14 @@ namespace Minecraft.ScriptableWorldGeneration
                                 continue;
                             }
 
-                            // 参考椭球方程
+                            // 타원체 
                             if (xDist * xDist + yDist * yDist < 1)
                             {
                                 for (int dz = minZ; dz <= maxZ; dz++)
                                 {
                                     float zDist = (dz + 0.5f - centerZ) / (diameterXZ * 0.5f);
 
-                                    // 参考椭球方程
+                                    // 타원체 
                                     if (xDist * xDist + yDist * yDist + zDist * zDist < 1)
                                     {
                                         SetBlock(dx, dy, dz, blocks, ore);

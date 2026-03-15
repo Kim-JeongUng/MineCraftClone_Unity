@@ -86,7 +86,7 @@ namespace Minecraft.PlayerControls
 
             if (m_HandBlockInputGO.activeInHierarchy)
             {
-                // 不用 onSubmit 了
+                // onSubmit은 사용하지 않음
 
                 m_CurrentHandBlockText.text = m_HandBlockInput.text;
                 m_HandBlockInput.DeactivateInputField();
@@ -139,9 +139,9 @@ namespace Minecraft.PlayerControls
 
                                 // if (Setting.SettingManager.Active.RenderingSetting.EnableDestroyEffect)
                                 // {
-                                //     ParticleSystem effect = Instantiate(m_DestroyEffectPrefab, firstHitPos + new Vector3(0.5f, 0.5f, 0.5f), Quaternion.identity).GetComponent<ParticleSystem>();
-                                //     ParticleSystem.MainModule main = effect.main;
-                                //     main.startColor = block.DestoryEffectColor;
+                                //   ParticleSystem effect = Instantiate(m_DestroyEffectPrefab, firstHitPos + new Vector3(0.5f, 0.5f, 0.5f), Quaternion.identity).GetComponent<ParticleSystem>();
+                                //   ParticleSystem.MainModule main = effect.main;
+                                //   main.startColor = block.DestoryEffectColor;
                                 // }
                             }
                         }
@@ -184,7 +184,7 @@ namespace Minecraft.PlayerControls
             }
             else
             {
-                // 无选定方块
+                // 선택된 블록 없음
                 ShaderUtility.TargetedBlockPosition = Vector3.down;
             }
         }
@@ -205,18 +205,17 @@ namespace Minecraft.PlayerControls
                     {
                         Quaternion rotation = Quaternion.identity;
 
-                        // !!! 一定要按下面的顺序相乘，才能保证先绕 y 再绕 xz
+                        // 반드시 아래 순서대로 곱해 Y축 회전 후 XZ축 회전을 보장
 
                         if ((block.RotationAxes & BlockRotationAxes.AroundXOrZAxis) == BlockRotationAxes.AroundXOrZAxis)
                         {
-                            rotation *= Quaternion.FromToRotation(Vector3.up, hit.Normal); // 底部朝向法线
-                        }
+                            rotation *= Quaternion.FromToRotation(Vector3.up, hit.Normal);                        }
 
                         if ((block.RotationAxes & BlockRotationAxes.AroundYAxis) == BlockRotationAxes.AroundYAxis)
                         {
                             Vector3 forward = m_PlayerEntity.Forward;
                             forward = Mathf.Abs(forward.x) > Mathf.Abs(forward.z) ? new Vector3(forward.x, 0, 0) : new Vector3(0, 0, forward.z);
-                            rotation *= Quaternion.LookRotation(-forward.normalized, Vector3.up); // 看向玩家
+                            rotation *= Quaternion.LookRotation(-forward.normalized, Vector3.up); // 플레이어 
                         }
 
                         world.RWAccessor.SetBlock(pos.x, pos.y, pos.z, block, rotation, ModificationSource.PlayerAction);

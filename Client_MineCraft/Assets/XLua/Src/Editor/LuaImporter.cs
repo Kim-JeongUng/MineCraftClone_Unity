@@ -133,10 +133,10 @@ public class LuaAssetEditor :  UnityEditor.Editor
     public override void OnInspectorGUI()
     {
         GUI.enabled = true;
-        EditorGUILayout.LabelField("Import Config(重新导入时生效)");
+        EditorGUILayout.LabelField("Import Config(재임포트 시 적용)");
         {
             ++EditorGUI.indentLevel;
-            LuaImporter.compile = EditorGUILayout.Toggle("compile(编译为字节码)", LuaImporter.compile);
+            LuaImporter.compile = EditorGUILayout.Toggle("compile(바이트코드로 컴파일)", LuaImporter.compile);
             if (LuaImporter.compile)
             {
                 ++EditorGUI.indentLevel;
@@ -144,7 +144,7 @@ public class LuaAssetEditor :  UnityEditor.Editor
                 --EditorGUI.indentLevel;
             }
 
-            LuaImporter.encode = EditorGUILayout.Toggle("encode(加密)", LuaImporter.encode);
+            LuaImporter.encode = EditorGUILayout.Toggle("encode(암호화)", LuaImporter.encode);
             --EditorGUI.indentLevel;
         }
         EditorGUILayout.Space();
@@ -153,7 +153,7 @@ public class LuaAssetEditor :  UnityEditor.Editor
         {
             ++EditorGUI.indentLevel;
             GUI.enabled = false;
-            EditorGUILayout.Toggle("encoded(加密)", mTarget.encode);
+            EditorGUILayout.Toggle("encoded(암호화)", mTarget.encode);
             GUI.enabled = true;
             
             if(mTarget.encode)

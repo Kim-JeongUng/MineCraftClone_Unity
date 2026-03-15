@@ -1,10 +1,10 @@
 ﻿namespace ToaruUnity.UI
 {
     /// <summary>
-    /// 切换页面的回调
+    /// 페이지 
     /// </summary>
-    /// <param name="result">切换页面的结果</param>
-    /// <param name="switchedViewKey">切换到的页面的Key</param>
-    /// <param name="switchedView">切换到的页面对象</param>
+    /// <param name="result">페이지</param> 
+    /// <param name="switchedViewKey">페이지Key</param> 
+    /// <param name="switchedView">페이지객체</param> 
     public delegate void SwitchViewCallbackHandler(SwitchViewResult result, object switchedViewKey, AbstractView switchedView);
 }

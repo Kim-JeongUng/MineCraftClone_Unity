@@ -55,8 +55,7 @@ function fluid:tick(x, y, z)
     end
 
     local rwAccessor = self.world.RWAccessor
-    self:set_fluid(x, y - 1, z, rwAccessor, level) -- 可以无限向下流
-
+    self:set_fluid(x, y - 1, z, rwAccessor, level)
     level = level - 1
 
     if level == 0 then

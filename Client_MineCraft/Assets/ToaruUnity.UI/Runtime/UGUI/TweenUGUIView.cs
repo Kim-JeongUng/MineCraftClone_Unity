@@ -241,7 +241,7 @@ namespace ToaruUnity.UI
                 }
             }
 
-            // 必须立刻开始，将状态设置为初始值
+            // 시작, 설정 
 
             if (m_ExecutingTransitionList == null)
                 yield break;

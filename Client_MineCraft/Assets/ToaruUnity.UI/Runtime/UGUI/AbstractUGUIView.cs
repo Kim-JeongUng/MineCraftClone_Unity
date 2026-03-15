@@ -11,7 +11,7 @@ namespace ToaruUnity.UI
         private CanvasGroup m_CanvasGroup;
 
         /// <summary>
-        /// 获取当前对象的<see cref="UnityEngine.CanvasGroup"/>组件
+        /// 가져오기객체<see cref="UnityEngine.CanvasGroup"/> 
         /// </summary>
         protected CanvasGroup CanvasGroup => m_CanvasGroup ?? (m_CanvasGroup = GetComponent<CanvasGroup>());
 

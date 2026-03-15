@@ -10,8 +10,7 @@
 
 inline half4 EaseIn(half4 a, half4 b, float w)
 {
-    return a + (b - a) * w * w * w; // 先慢后快
-}
+    return a + (b - a) * w * w * w;}
 
 inline void HighlightBlock(float3 blockPos, float2 uv, half4 highlightColor, inout half4 color)
 {
@@ -39,8 +38,8 @@ struct BlockAttributes
     float3 normalOS : NORMAL;
     float4 tangentOS : TANGENT;
     float2 uv : TEXCOORD0;
-    int3 texIndices : TEXCOORD1; // x: albedo, y: normal, z: mer（对应纹理在纹理数组中的索引）
-    float3 lights : TEXCOORD2; // x: emission, y: sky_light, z: block_light（均为 [0, 1] 的数字）
+    int3 texIndices : TEXCOORD1; // x: albedo, y: normal, z: mer(의) 
+    float3 lights : TEXCOORD2; // x: emission, y: sky_light, z: block_light( [0, 1] ) 
     float3 blockPositionWS : TEXCOORD3;
 };
 

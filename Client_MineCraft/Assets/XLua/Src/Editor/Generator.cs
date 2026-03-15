@@ -550,7 +550,7 @@ namespace CSObjectWrapEditor
         {
             if (isDefined(mb, typeof(BlackListAttribute))) return true;
 
-            //指针目前不支持，先过滤
+            // 포인터는 현재 지원되지 않아 먼저 제외
             if (mb.GetParameters().Any(pInfo => pInfo.ParameterType.IsPointer)) return true;
             if (mb is MethodInfo && (mb as MethodInfo).ReturnType.IsPointer) return true;
 
@@ -1268,13 +1268,13 @@ namespace CSObjectWrapEditor
             textWriter.Close();
         }
 
-        //lua中要使用到C#库的配置，比如C#标准库，或者Unity API，第三方库等。
+        // Lua에서 사용할 C# 라이브러리 설정(C# 표준 라이브러리, Unity API, 서드파티 라이브러리 등)
         public static List<Type> LuaCallCSharp = null;
 
-        //C#静态调用Lua的配置（包括事件的原型），仅可以配delegate，interface
+        // C#에서 Lua를 정적으로 호출하기 위한 설정(이벤트 시그니처 포함), delegate/interface만 설정 가능
         public static List<Type> CSharpCallLua = null;
 
-        //黑名单
+        //블랙리스트
         public static List<List<string>> BlackList = null;
 
         public static List<Type> GCOptimizeList = null;

@@ -1,20 +1,18 @@
 ﻿namespace ToaruUnity.UI
 {
     /// <summary>
-    /// 表示界面的状态
-    /// </summary>
+    /    /// </summary>
     public enum ViewState
     {
         /// <summary>
-        /// 表示界面处于被关闭状态
+        /// 닫기 
         /// </summary>
         Closed = 0,
         /// <summary>
-        /// 表示界面处于活动状态
-        /// </summary>
+        /        /// </summary>
         Active = 1,
         /// <summary>
-        /// 表示界面处于被暂停状态
+        /// 일시중지 
         /// </summary>
         Suspended = 2
     }

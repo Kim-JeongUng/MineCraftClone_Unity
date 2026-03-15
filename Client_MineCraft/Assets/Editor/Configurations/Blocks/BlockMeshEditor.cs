@@ -180,7 +180,7 @@ namespace MinecraftEditor.Configurations.Blocks
             if (fieldIndex != m_SelectedFieldIndex)
             {
                 m_SelectedFieldIndex = fieldIndex;
-                m_ClearListCacheMethod.Invoke(m_VertexOrIndexList, Array.Empty<object>()); // 清除列表元素的高度缓存
+                m_ClearListCacheMethod.Invoke(m_VertexOrIndexList, Array.Empty<object>()); // 리스트 요소의 높이 캐시를 지움
             }
 
             EditorGUILayout.HelpBox($"{m_VertexOrIndexList.serializedProperty.arraySize} {m_FieldList[fieldIndex]} will be written in order.", MessageType.None);

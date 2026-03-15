@@ -6,9 +6,9 @@ using Minecraft.Lua;
 namespace Minecraft.Collections
 {
     /// <summary>
-    /// 表示根据对象优先级排列的队列
+    /// 객체큐 
     /// </summary>
-    /// <typeparam name="T">元素对象的类型</typeparam>
+    /// <typeparam name="T">요소객체</typeparam> 
     public class PriorityQueue<T> : IReadOnlyCollection<T>, ILuaCallCSharp
     {
         private const int DefaultCapacity = 4;
@@ -106,7 +106,7 @@ namespace Minecraft.Collections
         public T Dequeue()
         {
             if (m_Size == 0)
-                throw new InvalidOperationException("队列长度为0");
+                throw new InvalidOperationException("큐 길이가 0입니다");
 
             int i = --m_Size;
             m_Version++;
@@ -127,7 +127,7 @@ namespace Minecraft.Collections
 
         public T Peek()
         {
-            return m_Size > 0 ? m_Array[0] : throw new InvalidOperationException("队列长度为0");
+            return m_Size > 0 ? m_Array[0] : throw new InvalidOperationException("큐 길이가 0입니다");
         }
 
         public void Enqueue(T item)
@@ -151,7 +151,7 @@ namespace Minecraft.Collections
         }
 
         /// <summary>
-        /// 注：无法保证元素的顺序
+        /// : 요소 
         /// </summary>
         /// <returns></returns>
         public T[] ToArray()
@@ -187,7 +187,6 @@ namespace Minecraft.Collections
 
         private void SiftUp(T item, int i)
         {
-            //小顶堆
             while (i > 0)
             {
                 int parentIndex = (i - 1) >> 1;
@@ -206,7 +205,6 @@ namespace Minecraft.Collections
         {
             int half = m_Size >> 1;
 
-            //小顶堆
             while (i < half)
             {
                 int childIndex = (i << 1) + 1;
@@ -242,8 +240,8 @@ namespace Minecraft.Collections
         }
 
         /// <summary>
-        /// 获取迭代器
-        /// 注：迭代无法保证元素的顺序
+        /// 가져오기반복 
+        /// : 반복요소 
         /// </summary>
         /// <returns></returns>
         public Enumerator GetEnumerator()
@@ -276,9 +274,9 @@ namespace Minecraft.Collections
                     switch (m_Index)
                     {
                         case -1:
-                            throw new InvalidOperationException("迭代没有开始");
+                            throw new InvalidOperationException("반복이 시작되지 않았습니다");
                         case -2:
-                            throw new InvalidOperationException("迭代器已经被释放");
+                            throw new InvalidOperationException("반복자가 이미 해제되었습니다");
                         default:
                             return m_Current;
                     }
@@ -302,7 +300,7 @@ namespace Minecraft.Collections
             public bool MoveNext()
             {
                 if (m_Version != m_Queue.m_Version)
-                    throw new InvalidOperationException("迭代时修改集合元素");
+                    throw new InvalidOperationException("반복 중 컬렉션 요소를 수정했습니다");
 
                 if (m_Index == -2)
                     return false;
@@ -323,7 +321,7 @@ namespace Minecraft.Collections
             public void Reset()
             {
                 if (m_Version != m_Queue.m_Version)
-                    throw new InvalidOperationException("迭代时修改集合元素");
+                    throw new InvalidOperationException("반복 중 컬렉션 요소를 수정했습니다");
 
                 m_Index = -1;
                 m_Current = default;

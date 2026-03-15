@@ -17,7 +17,7 @@ namespace Minecraft
         [Serializable] private class ChunkPosEvent : UnityEvent<ChunkPos> { }
 
 
-        [SerializeField] private int m_MaxChunkCountInMemory = 3000; // 内存中的最大 Chunk 数量
+        [SerializeField] private int m_MaxChunkCountInMemory = 3000; // 메모리의최대 Chunk 개수 
         [SerializeField] private ChunkEvent m_OnChunkLoaded;
         [SerializeField] private ChunkPosEvent m_OnChunkUnloaded;
 
@@ -60,7 +60,7 @@ namespace Minecraft
 
         private void OnWillUnloadChunk(ChunkPos key, Chunk value)
         {
-            // 卸载所有与该 chunk 有关联的 Chunk3x3Accessor
+            // 언로드모든 chunk Chunk3x3Accessor 
             for (int x = Chunk3x3Accessor.XOffsetBegin; x <= Chunk3x3Accessor.XOffsetEnd; x++)
             {
                 for (int z = Chunk3x3Accessor.ZOffsetBegin; z <= Chunk3x3Accessor.ZOffsetEnd; z++)

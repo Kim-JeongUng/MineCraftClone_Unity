@@ -72,24 +72,24 @@ inline half4 BlockFragmentPBR(BlockBRDFData input, half alpha)
     half lv = saturate(dot(mainLight.direction, viewDirWS));
     half lh = saturate(dot(mainLight.direction, halfDir));
 
-    half isDay = saturate(mainLight.direction.y); // 白天为 1，夜晚为 0，昼夜交替时在 (0, 1) 内
-    half receiveSkyLight = pow(input.skyLight, 2); // 如果直接被太阳照到就是 1，否则是 [0, 1) 间的一个比较小的数
-    half skyLightLevel = lerp(_LightLimits.x, _LightLimits.y, input.skyLight * nl) * isDay; // 白天才受到太阳光照
+    half isDay = saturate(mainLight.direction.y); // 낮은 1, 밤은 0, 전환 시 (0,1)
+    half receiveSkyLight = pow(input.skyLight, 2); // 직사광이면 1, 아니면 [0,1)의 작은 값
+    half skyLightLevel = lerp(_LightLimits.x, _LightLimits.y, input.skyLight * nl) * isDay; // 낮에만 태양광 적용
     half perceptualRoughness = RoughnessToPerceptualRoughness(input.roughness);
 
     half3 dayDiffuse = diffColor * DisneyDiffuse(nv, nl, lv, perceptualRoughness) * skyLightLevel;
-    half3 nightColor = (1 - isDay) * 0.02 * diffColor; // 晚上不能全黑，所以加一点亮度
-    half3 diffuseTerm = (dayDiffuse + nightColor) * receiveSkyLight; // 不被太阳照到的地方，让它尽可能暗
+    half3 nightColor = (1 - isDay) * 0.02 * diffColor; // 밤이 완전히 검지 않도록 약간 밝게
+    half3 diffuseTerm = (dayDiffuse + nightColor) * receiveSkyLight; // 태양광이 없는 곳은 최대한 어둡게
 
     half DV = DV_SmithJointGGX(nh, nl, nv, input.roughness);
     half3 F = FresnelTerm(specColor, lh);
-    half3 specularTerm = DV * F * nl * isDay * receiveSkyLight; // 白天并且直接被太阳照到的话才有
+    half3 specularTerm = DV * F * nl * isDay * receiveSkyLight; // 낮이며 직사광일 때만 존재
 
-    half shadowAttenuation = lerp(1, mainLight.shadowAttenuation, isDay); // 晚上不要阴影
+    half shadowAttenuation = lerp(1, mainLight.shadowAttenuation, isDay); // 밤에는 그림자 없음
 
     half3 skyLightTerm = PI * (diffuseTerm + specularTerm) * mainLight.color * mainLight.distanceAttenuation * shadowAttenuation;
-    half3 blockLightTerm = (diffColor + specColor) * input.blockLight; // 方块光照不能受阴影影响
-    half3 emissionTerm = input.emission * input.albedo; // 自发光
+    half3 blockLightTerm = (diffColor + specColor) * input.blockLight; // 블록 광원은 그림자 영향 없음
+    half3 emissionTerm = input.emission * input.albedo; // 자체 발광
 
     half4 color = half4(emissionTerm + max(skyLightTerm, blockLightTerm), alpha);
 

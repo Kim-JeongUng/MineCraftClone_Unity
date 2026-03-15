@@ -12,7 +12,7 @@ using UnityEngine.Events;
 namespace ToaruUnity.UI
 {
     /// <summary>
-    /// 所有页面的抽象基类
+    /// 모든페이지 
     /// </summary>
     [DisallowMultipleComponent]
     public abstract class AbstractView : MonoBehaviour
@@ -25,26 +25,26 @@ namespace ToaruUnity.UI
         private ActionCenter m_ActionCenter; // may be null
 
         [SerializeField]
-        [Tooltip("当界面进行状态过渡前触发")]
+        [Tooltip("화면 상태 전환 전에 호출")]
         private BeforeTransitionEvent m_OnBeforeTransition;
 
         [SerializeField]
-        [Tooltip("当界面进行状态过渡后触发")]
+        [Tooltip("화면 상태 전환 후에 호출")]
         private AfterTransitionEvent m_OnAfterTransition;
 
 
         /// <summary>
-        /// 获取当前对象的状态
+        /// 가져오기객체 
         /// </summary>
         public ViewState State => m_State;
 
         /// <summary>
-        /// 获取是否正在进行状态的过渡
+        /// 가져오기여부 
         /// </summary>
         public bool IsTransiting => m_IsTransiting;
 
         /// <summary>
-        /// 当界面进行状态过渡前触发
+        /// 화면 상태 전환 전에 호출
         /// </summary>
         public event UnityAction<AbstractView, ViewState> OnBeforeTransition
         {
@@ -53,7 +53,7 @@ namespace ToaruUnity.UI
         }
 
         /// <summary>
-        /// 当界面进行状态过渡后触发
+        /// 화면 상태 전환 후에 호출
         /// </summary>
         public event UnityAction<AbstractView> OnAfterTransition
         {
@@ -63,21 +63,21 @@ namespace ToaruUnity.UI
 
 
         /// <summary>
-        /// 获取剩余的状态过渡任务数量
+        /// 가져오기개수 
         /// </summary>
         public int RemainingTransitionCount => m_TransitionQueue.Count;
 
 
         /// <summary>
-        /// 获取当前对象的<see cref="UnityEngine.Transform"/>组件
+        /// 가져오기객체<see cref="UnityEngine.Transform"/> 
         /// </summary>
         public Transform Transform => m_Transform ?? (m_Transform = GetComponent<Transform>());
 
 
 
         /// <summary>
-        /// 获取注入的<see cref="ActionCenter"/>对象。
-        /// 如果没有指定注入类型或者注入失败，将会返回null。
+        /// 가져오기<see cref="ActionCenter"/>객체. 
+        /// 만약, 반환null. 
         /// </summary>
         protected internal ActionCenter Actions => m_ActionCenter;
 
@@ -112,7 +112,6 @@ namespace ToaruUnity.UI
 
                 if (routine == null)
                 {
-                    // 非协程
                     SetStateAfterTransition(nextState);
                 }
                 else
@@ -128,7 +127,7 @@ namespace ToaruUnity.UI
 
             do
             {
-                yield return routine; // 这里是null的话，就等一帧
+                yield return routine; // null, 
 
                 SetStateAfterTransition(nextState);
             }
@@ -170,7 +169,7 @@ namespace ToaruUnity.UI
                     return OnResume(transition.Param);
 
                 default:
-                    throw new InvalidOperationException($"无法从状态{State}切换到{transition.NextState}");
+                    throw new InvalidOperationException($"상태에서 전환할 수 없음: {State}{transition.NextState}");
             }
         }
 

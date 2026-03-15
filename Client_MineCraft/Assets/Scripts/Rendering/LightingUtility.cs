@@ -8,7 +8,7 @@ namespace Minecraft.Rendering
     public static class LightingUtility
     {
         public const int MaxLight = 15;
-        public const int SkyLight = MaxLight - 1; // *避免第一个实际接受到天空光照的方块过亮
+        public const int SkyLight = MaxLight - 1; // *광원블록 
 
         public const int MaxBlockFaceCount = 6;
         public const int MaxBlockFaceCornerCount = 4;

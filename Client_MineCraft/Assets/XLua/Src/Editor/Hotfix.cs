@@ -1049,10 +1049,10 @@ namespace XLua
                 return null;
             }
             //if (type.IsGenericInstance && 
-            //    (method.Module.Assembly.FullName != type.Module.Assembly.FullName || method.Module.Assembly.FullName != td.Module.Assembly.FullName
-            //    || method.Module.FullyQualifiedName != type.Module.FullyQualifiedName || method.Module.FullyQualifiedName != td.Module.FullyQualifiedName))
+            //  (method.Module.Assembly.FullName != type.Module.Assembly.FullName || method.Module.Assembly.FullName != td.Module.Assembly.FullName
+            //  || method.Module.FullyQualifiedName != type.Module.FullyQualifiedName || method.Module.FullyQualifiedName != td.Module.FullyQualifiedName))
             //{
-            //    return _findBase(td.BaseType, method);
+            //  return _findBase(td.BaseType, method);
             //}
             var m = findOverride(td, method);
             if (m != null)

@@ -6,7 +6,7 @@ using Minecraft.Lua;
 namespace Minecraft.Collections
 {
     /// <summary>
-    /// 元素大小为4位的数组
+    /// 요소4 
     /// </summary>
     public class NibbleArray : IReadOnlyList<byte>, IEnumerable<byte>, ILuaCallCSharp
     {
@@ -16,8 +16,8 @@ namespace Minecraft.Collections
 
         public byte this[int index]
         {
-            // index 为偶数，保存在后 4 位；index 为奇数保存在前 4 位
-            // 下面这个是闲着无聊写得...
+            // index , 4 ; index 4 
+            // ... 
             get => (byte)((m_Data[index >> 1] >> ((index & 1) << 2)) & 15);
             set => m_Data[index >> 1] = (byte)((m_Data[index >> 1] & (15 << ((~index & 1) << 2))) | ((value & 15) << ((index & 1) << 2)));
         }
@@ -41,8 +41,8 @@ namespace Minecraft.Collections
         {
             for (int i = 0; i < m_Data.Length; i++)
             {
-                yield return (byte)(m_Data[i] & 15);// 偶数 index
-                yield return (byte)((m_Data[i] >> 4) & 15);// 奇数 index
+                yield return (byte)(m_Data[i] & 15);// index 
+                yield return (byte)((m_Data[i] >> 4) & 15);// index 
             }
         }
 

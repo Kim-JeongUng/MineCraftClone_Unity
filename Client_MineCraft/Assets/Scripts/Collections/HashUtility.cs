@@ -31,7 +31,7 @@ namespace Minecraft.Collections
         }
 
         /// <summary>
-        /// 返回一个大于等于 3 和 <paramref name="min"/> 的素数。
+        /// 반환 3 <paramref name="min"/> . 
         /// </summary>
         /// <param name="min"></param>
         /// <returns></returns>
