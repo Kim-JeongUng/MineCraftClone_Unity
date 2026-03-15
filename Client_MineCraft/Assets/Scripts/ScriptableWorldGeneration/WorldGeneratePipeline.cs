@@ -107,7 +107,7 @@ namespace Minecraft.ScriptableWorldGeneration
 
             m_TerrainGenerator.Generate(world, transform, blocks, rotations, heightMap, m_GenHelper, context);
 
-            // 生成洞穴
+            // 생성동굴 
             if (UseCaves)
             {
                 m_CaveGenerator.Generate(world, transform, blocks, rotations, heightMap, m_GenHelper, context);

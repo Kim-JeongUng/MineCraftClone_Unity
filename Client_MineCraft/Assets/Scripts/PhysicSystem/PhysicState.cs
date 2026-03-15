@@ -5,12 +5,10 @@ namespace Minecraft.PhysicSystem
     public enum PhysicState
     {
         /// <summary>
-        /// 固体
-        /// </summary>
+        /        /// </summary>
         Solid,
         /// <summary>
-        /// 流体
-        /// </summary>
+        /        /// </summary>
         Fluid
     }
 }

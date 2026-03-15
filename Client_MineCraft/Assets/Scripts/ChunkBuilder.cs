@@ -122,15 +122,15 @@ namespace Minecraft
                         skyLights[Chunk.GetNibbleArrayIndex(x, y, z)] = (byte)skyLight;
                         skyLight = GetBlockedLight(skyLight, block);
 
-                        // Chunk 加载完后，在主线程调用 Chunk.PostLightAllBlocks
+                        // Chunk 로드, 메인 스레드 Chunk.PostLightAllBlocks 
                         // if (block.LightValue > 0)
                         // {
-                        //     int worldX = x;
-                        //     int worldY = y;
-                        //     int worldZ = z;
+                        //   int worldX = x;
+                        //   int worldY = y;
+                        //   int worldZ = z;
 
-                        //     WorldUtility.AccessorSpaceToWorldSpacePosition(pos.XOZ, ref worldX, ref worldY, ref worldZ);
-                        //     world.LightBlock(worldX, worldY, worldZ);
+                        //   WorldUtility.AccessorSpaceToWorldSpacePosition(pos.XOZ, ref worldX, ref worldY, ref worldZ);
+                        //   world.LightBlock(worldX, worldY, worldZ);
                         // }
                     }
 

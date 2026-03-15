@@ -31,7 +31,7 @@ namespace Minecraft.Rendering
 
                 if (EnableFaceClipping)
                 {
-                    // 没有撑满一格的方块所有的面都渲染
+                    // 블록모든 
                     Vector3 size = mesh.BoundingBox.Size;
                     bool neverClip = face.NeverClip | size.x < 1 | size.y < 1 | size.z < 1;
 

@@ -10,9 +10,9 @@ namespace Minecraft
 {
     internal class WorldSinglePlayer : World
     {
-        [NonSerialized] private Stack<Vector3Int> m_BlocksToLightQueue; // 这个也不用锁了，只会在主线程被使用
+        [NonSerialized] private Stack<Vector3Int> m_BlocksToLightQueue; // 않, 메인 스레드 
         [NonSerialized] private Stack<Vector3Int> m_ImportantBlocksToLightQueue;
-        [NonSerialized] private Queue<Vector3Int> m_BlocksToTickQueue; // 这个不用锁，只会在主线程被使用
+        [NonSerialized] private Queue<Vector3Int> m_BlocksToTickQueue; // 않, 메인 스레드 
 
         protected override IEnumerator OnInitialize()
         {
@@ -32,9 +32,9 @@ namespace Minecraft
 
         private void LightBlocks()
         {
-            // TODO: 优化
+            // TODO: 최적화 
 
-            int limit = MaxLightBlockCountPerFrame; // 防止卡死
+            int limit = MaxLightBlockCountPerFrame; // 방지멈춤 
             LightBlocks(m_ImportantBlocksToLightQueue, ref limit, ModificationSource.PlayerAction);
             LightBlocks(m_BlocksToLightQueue, ref limit, ModificationSource.InternalOrSystem);
         }
@@ -52,7 +52,7 @@ namespace Minecraft
 
                 if (!ChunkManager.GetChunk(ChunkPos.GetFromAny(blockPos.x, blockPos.z), false, out _))
                 {
-                    // 我不想管这个了，如果有人有好的算法请告诉我！
+                    // 않, 만약！ 
                     // m_BlocksToLightQueue.Push(blockPos);
                     // break;
                     continue;
@@ -66,7 +66,7 @@ namespace Minecraft
                 int opacity = Mathf.Max(block.LightOpacity, 1);
                 int finalLight = 0;
 
-                if (opacity < MaxLight || block.LightValue > 0) // 不然就是0
+                if (opacity < MaxLight || block.LightValue > 0) // 않0 
                 {
                     int max = RWAccessor.GetAmbientLight(x + 1, y, z);
                     int temp;
@@ -90,7 +90,7 @@ namespace Minecraft
 
                     if (block.LightValue > finalLight)
                     {
-                        finalLight = block.LightValue; // 假设这个值一定是合法的（不过确实应该是合法的）
+                        finalLight = block.LightValue; // (않) 
                     }
                     else if (finalLight < 0)
                     {
@@ -98,7 +98,7 @@ namespace Minecraft
                     }
                     //else if (finalLight > MaxLight)
                     //{
-                    //    finalLight = MaxLight;
+                    //  finalLight = MaxLight;
                     //}
                 }
 
@@ -120,7 +120,7 @@ namespace Minecraft
 
             if (count > MaxTickBlockCountPerFrame)
             {
-                count = MaxTickBlockCountPerFrame; // 防止卡死
+                count = MaxTickBlockCountPerFrame; // 방지멈춤 
             }
 
             while (count-- > 0)

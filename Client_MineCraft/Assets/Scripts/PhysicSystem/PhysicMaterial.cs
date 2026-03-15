@@ -14,7 +14,7 @@ namespace Minecraft.PhysicSystem
 
         public static float CombineValue(float left, float right)
         {
-            return Mathf.Max(left, right); // 这里直接用 Max 了，PhysicMaterialCombine 太麻烦了
+            return Mathf.Max(left, right); // Max , PhysicMaterialCombine 
         }
     }
 }

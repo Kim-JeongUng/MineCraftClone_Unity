@@ -36,7 +36,7 @@ namespace Minecraft.ScriptableWorldGeneration
 
         public override void Generate(IWorld world, ChunkPos pos, BlockData[,,] blocks, Quaternion[,,] rotations, byte[,] heightMap, GenerationHelper helper, GenerationContext context)
         {
-            // 生物群系生成
+            // 생성 
             NativeInt2DArray biomeIds = helper.GenLayers.GetInts(pos.X - 8, pos.Z - 8, 32, 32, Allocator.TempJob);
 
             for (int i = 0; i < 10; i++)
@@ -49,10 +49,10 @@ namespace Minecraft.ScriptableWorldGeneration
 
             biomeIds.Dispose();
 
-            // 基本地形生成
+            // 지형생성 
             GenerateBasicTerrain(world, pos, blocks, helper, context);
 
-            // 获取生物群系
+            // 가져오기 
             biomeIds = helper.GenLayers.GetInts(pos.X, pos.Z, 16, 16, Allocator.TempJob);
 
             for (int i = 0; i < 16; i++)
@@ -65,19 +65,19 @@ namespace Minecraft.ScriptableWorldGeneration
 
             biomeIds.Dispose();
 
-            // 设置生物群系
+            // 설정 
             // for (int height = 0; height < 64; ++height)
             // {
-            //     for (int i = 0; i < 4; ++i)
-            //     {
-            //         for (int j = 0; j < 4; ++j)
-            //         {
-            //             columns[(height * 4 + i) * 4 + j].BiomeConfigData = (int)_biomesForGeneration[j * 4, i * 4].GetBiomeId();
-            //         }
-            //     }
+            //   for (int i = 0; i < 4; ++i)
+            //   {
+            //       for (int j = 0; j < 4; ++j)
+            //       {
+            //           columns[(height * 4 + i) * 4 + j].BiomeConfigData = (int)_biomesForGeneration[j * 4, i * 4].GetBiomeId();
+            //       }
+            //   }
             // }
 
-            // 添加生物群系特有方块
+            // 선택된 블록 없음
             ReplaceBiomeBlocks(world, pos, blocks, helper, context);
         }
 
@@ -86,14 +86,14 @@ namespace Minecraft.ScriptableWorldGeneration
             int x = pos.X / 16;
             int z = pos.Z / 16;
 
-            // 产生高度图
+            // 높이 
             GenerateDensityMap(new Vector3Int(x * 4, 0, z * 4), helper, context);
 
             BlockData airBlock = world.BlockDataTable.GetBlock(AirBlock);
             BlockData stoneBlock = world.BlockDataTable.GetBlock(StoneBlock);
             BlockData waterBlock = world.BlockDataTable.GetBlock(WaterBlock);
 
-            // 进行线性插值
+            // 선형 보간 
             for (int xHigh = 0; xHigh < 4; xHigh++)
             {
                 for (int zHigh = 0; zHigh < 4; zHigh++)
@@ -163,12 +163,12 @@ namespace Minecraft.ScriptableWorldGeneration
 
             Vector3 noiseScale = new Vector3(CoordinateScale, HeightScale, CoordinateScale);
 
-            // 生成 3 个 5 * 5 * 33 的噪声
+            // 생성 3 5 * 5 * 33 
             helper.MainNoise.Noise(context.MainNoiseMap, noiseOffset, Vector3.Scale(noiseScale, MainNoiseScale));
             helper.MinNoise.Noise(context.MinLimitMap, noiseOffset, noiseScale);
             helper.MaxNoise.Noise(context.MaxLimitMap, noiseOffset, noiseScale);
 
-            // chunk遍历
+            // chunk 
             for (int x1 = 0; x1 < 5; x1++)
             {
                 for (int z1 = 0; z1 < 5; z1++)
@@ -177,10 +177,10 @@ namespace Minecraft.ScriptableWorldGeneration
                     float groundYOffset = 0;
                     float totalWeight = 0;
 
-                    // 中心点生物群系
+                    // 중심 
                     BiomeData centerBiome = context.Biomes[z1 + 2, x1 + 2];
 
-                    // 求 scale 和 groundYOffset 的加权平均值
+                    // scale groundYOffset 
                     for (int x2 = 0; x2 < 5; x2++)
                     {
                         for (int z2 = 0; z2 < 5; z2++)
@@ -189,7 +189,7 @@ namespace Minecraft.ScriptableWorldGeneration
                             float curGroundYOffset = BiomeDepthOffset + biome.BaseHeight * BiomeDepthWeight; // biomeDepthOffSet = 0
                             float curScale = BiomeScaleOffset + biome.HeightVariation * BiomeScaleWeight; // biomeScaleOffset = 0
 
-                            // parabolicField 为 10 / √(该点到中心点的距离^2 + 0.2)
+                            // parabolicField 10 / √(중심거리^2 + 0.2) 
                             float weight = helper.BiomeWeights[z2, x2] / (curGroundYOffset + 2.0f);
 
                             if (biome.BaseHeight > centerBiome.BaseHeight)
@@ -208,7 +208,7 @@ namespace Minecraft.ScriptableWorldGeneration
                     scale = scale * 0.9f + 0.1f;
                     groundYOffset = (groundYOffset * 4.0f - 1.0f) / 8.0f;
 
-                    // 取一个 -0.36 ~ 0.125 的随机数，这个随机数决定了起伏的地表
+                    // -0.36 ~ 0.125 랜덤, 랜덤 
                     float random = (context.DepthMap[x1, 0, z1] - 0.5f) * 2 / 8000f;
 
                     if (random < 0)
@@ -243,36 +243,36 @@ namespace Minecraft.ScriptableWorldGeneration
                     float groundYOffset1 = groundYOffset;
                     float scale1 = scale;
 
-                    // groundYOffset 有 -0.072 ~ 0.025 的变动量
+                    // groundYOffset -0.072 ~ 0.025 
                     groundYOffset1 = groundYOffset1 + random * 0.2f;
                     groundYOffset1 = groundYOffset1 * BaseSize / 8.0f;
 
-                    // 这个是大概的地面 y 坐标
-                    float groundY = BaseSize + groundYOffset1 * 4.0f; // baseSize = 8.5，应该代表了平均地表高度 68
+                    // y 좌표 
+                    float groundY = BaseSize + groundYOffset1 * 4.0f; // baseSize = 8.5, 높이 68 
 
-                    // 注意这个 y * 8 才是最终的y坐标
+                    // y * 8 y좌표 
                     for (int y = 0; y < 33; y++)
                     {
-                        // result 偏移量，这个是负数则趋向固体，是正数则趋向液体和空气
-                        float offset = (y - groundY) * StretchY * 128.0f / 256.0f / scale1; // scale 大概在 0.1 ~ 0.2 这样...
+                        // result , , 공기 
+                        float offset = (y - groundY) * StretchY * 128.0f / 256.0f / scale1; // scale 0.1 ~ 0.2 ... 
 
                         if (offset < 0)
                         {
                             offset *= 4f;
                         }
 
-                        // 并不保证 lowerLimit < upperLimit，不过没有影响
+                        // 않 lowerLimit < upperLimit, 않 
                         float lowerLimit = (context.MinLimitMap[x1, y, z1] - 0.5f) * 160000 / LowerLimitScale; // lowerLimitScale = 512
                         float upperLimit = (context.MaxLimitMap[x1, y, z1] - 0.5f) * 160000 / UpperLimitScale; // upperLimitScale = 512
                         float t = ((context.MainNoiseMap[x1, y, z1] - 0.5f) * 160000 / 10.0f + 1.0f) / 2.0f;
 
-                        // 这个函数 t < 0 则取 lowerLimit，t > 1 则取 upperLimit，否则以 t 为参数在上下限间线性插值
+                        // t < 0 lowerLimit, t > 1 upperLimit, t 인자선형 보간 
                         float result = Mathf.Lerp(lowerLimit, upperLimit, t) - offset;
 
                         // y = 30 ~ 32
                         if (y > 29)
                         {
-                            // 在原 result 和 -10 之间线性插值，这样 y > 240 的方块就会越来越少，最后全变成空气
+                            // result -10 선형 보간, y > 240 블록, 공기 
                             float t2 = (float)(y - 29) / 3f;
                             result = result * (1f - t2) + -10f * t2;
                         }

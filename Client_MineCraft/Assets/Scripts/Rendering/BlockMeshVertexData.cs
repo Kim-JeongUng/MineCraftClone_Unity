@@ -19,23 +19,23 @@ namespace Minecraft.Rendering
         };
 
         /// <summary>
-        /// 顶点坐标（Object Space）。
+        /// 좌표(Object Space). 
         /// </summary>
         public Vector3 PositionOS;
         /// <summary>
-        /// UV 坐标。
+        /// UV 좌표. 
         /// </summary>
         public Vector2 UV;
         /// <summary>
-        /// 纹理索引，xyz 依次为 Albedo，Normal，MER。
+        /// , xyz Albedo, Normal, MER. 
         /// </summary>
         public Vector3Int TexIndices;
         /// <summary>
-        /// 烘焙的光照信息 依次为 Emission SkyLight Ambient。
+        /// 광원 Emission SkyLight Ambient. 
         /// </summary>
         public Vector3 Lights;
         /// <summary>
-        /// 所属的方块的世界坐标。
+        /// 블록월드좌표. 
         /// </summary>
         public Vector3 BlockPositionWS;
     }

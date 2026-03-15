@@ -11,7 +11,7 @@ namespace Minecraft.PhysicSystem
         public static Vector3 Gravity => UnityEngine.Physics.gravity;
 
         /// <summary>
-        /// 方块射线检测 (start, end]
+        /// 블록검사 (start, end] 
         /// </summary>
         /// <param name="ray"></param>
         /// <param name="maxDistance"></param>
@@ -40,7 +40,7 @@ namespace Minecraft.PhysicSystem
             int endY = Mathf.FloorToInt(end.y);
             int endZ = Mathf.FloorToInt(end.z);
 
-            int count = 200; // 上限200个方块，防止死循环
+            int count = 200; // 200블록, 방지 
 
             while ((startX != endX || startY != endY || startZ != endZ) && (count-- > 0))
             {
@@ -71,7 +71,7 @@ namespace Minecraft.PhysicSystem
                 float dy = end.y - start.y;
                 float dz = end.z - start.z;
 
-                // 向X方向选了候选方块
+                // X방향블록 
                 if (endX != startX)
                 {
                     xt = (newX - start.x) / dx;
@@ -87,10 +87,10 @@ namespace Minecraft.PhysicSystem
                     zt = (newZ - start.z) / dz;
                 }
 
-                // 最终选了哪个方向的候选方块
+                // 방향블록 
                 BlockFace direction;
 
-                // 选出候选方块中离起点(当前)最近的，更新起点、要检测的方块坐标
+                // 블록(), 、검사블록좌표 
                 if (xt < yt && xt < zt)
                 {
                     start.x = newX;
@@ -123,7 +123,7 @@ namespace Minecraft.PhysicSystem
                 switch (direction)
                 {
                     case BlockFace.NegativeX:
-                        startX--; // 以方块内各轴最小坐标为方块坐标，这里得到的是X上最大坐标所以要-1
+                        startX--; // 블록최소좌표블록좌표, X최대좌표-1 
                         break;
                     case BlockFace.NegativeY:
                         startY--;
@@ -133,7 +133,7 @@ namespace Minecraft.PhysicSystem
                         break;
                 }
 
-                // 检测新起点方块
+                // 검사블록 
                 Vector3Int pos = new Vector3Int(startX, startY, startZ);
                 BlockData block = world.RWAccessor.GetBlock(startX, startY, startZ);
                 // AABB? boundingBox = block.GetBoundingBox(pos, world);
@@ -170,9 +170,9 @@ namespace Minecraft.PhysicSystem
             if (y >= 0 && y < ChunkHeight)
             {
                 int startX = Mathf.FloorToInt(aabb.Min.x);
-                int endX = Mathf.FloorToInt(aabb.Max.x - 0.05f); // 稍微做一个偏移，避免误判
+                int endX = Mathf.FloorToInt(aabb.Max.x - 0.05f); // , 
                 int startZ = Mathf.FloorToInt(aabb.Min.z);
-                int endZ = Mathf.FloorToInt(aabb.Max.z - 0.05f); // 稍微做一个偏移，避免误判
+                int endZ = Mathf.FloorToInt(aabb.Max.z - 0.05f); // , 
 
                 for (int x = startX; x <= endX; x++)
                 {
@@ -233,22 +233,19 @@ namespace Minecraft.PhysicSystem
 
         private static void CalculateVelocityAfterCollisionWithTerrain(PhysicMaterial material, BlockData blockCollided, ref float velocity)
         {
-            // 碰撞公式：
+            // : 
             // v1' = ((m1 - e * m2) * v1 + (1 + e) * m2 * v2) / (m1 + m2)
-            //
-            // 其中：
-            // v1' 为碰撞体碰撞后的速度
-            // m1 为碰撞体的质量
-            // v1 为碰撞体初速度
-            // m2 为地形质量
-            // v2 为地形初速度
-            // e 为恢复系数
-            //
-            // 在这里显然有：
+            // : 
+            // v1' 
+            // m1 
+            // v1 
+            // m2 지형 
+            // v2 지형 
+            // e 복원 
+            // : 
             // m1 << m2
             // v2 = 0
-            //
-            // 于是公式简化为：
+            // : 
             // v1' = -e * v1
 
             float e = blockCollided.PhysicMaterial.CoefficientOfRestitution;
@@ -343,7 +340,7 @@ namespace Minecraft.PhysicSystem
                             continue;
                         }
 
-                        // 下面两个 if 中的注释是多余条件。注释掉可以解决部分情况下穿墙的问题
+                        // if 의주석.주석 
                         if (movement > 0 /* && aabb.Max[axis] <= blockBB.Min[axis] */)
                         {
                             float maxMovement = blockBB.Min[axis] - aabb.Max[axis];

@@ -84,7 +84,6 @@ namespace Minecraft.Entities
 
         private void BuildMesh(Vector3Int position)
         {
-            // 渲染在原点的位置
             m_MeshBuilder.AddBlock(position, -position, m_Block, World.RWAccessor);
             m_MeshBuilder.ApplyAndClearBuffers(m_Mesh, MeshTopology.Triangles, false, Allocator.Temp);
 
@@ -105,7 +104,7 @@ namespace Minecraft.Entities
 
             if (m_Transform.position.y < -20)
             {
-                // 掉出世界了
+                // 월드 
                 World.EntityManager.DestroyEntity(this);
             }
         }

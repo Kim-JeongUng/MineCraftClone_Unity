@@ -108,7 +108,6 @@ namespace Minecraft.Entities
                 acceleration += Physics.Gravity * GravityMultiplier;
             }
 
-            // 用匀速直线运动近似
             Vector3 averageVelocity = m_Velocity + time * acceleration;
             Move(averageVelocity, time);
         }

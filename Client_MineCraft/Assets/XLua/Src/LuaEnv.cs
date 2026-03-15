@@ -357,7 +357,7 @@ namespace XLua
 #endif
         }
 
-        //兼容API
+        //API
         public void GC()
         {
             Tick();
@@ -598,8 +598,8 @@ namespace XLua
 
         internal List<CustomLoader> customLoaders = new List<CustomLoader>();
 
-        //loader : CustomLoader， filepath参数：（ref类型）输入是require的参数，如果需要支持调试，需要输出真实路径。
-        //                        返回值：如果返回null，代表加载该源下无合适的文件，否则返回UTF8编码的byte[]
+        //loader : CustomLoader filepathref停require牟要支值裕要实路
+        //                      值null馗源藓实募蚍祷UTF8byte[]
         public void AddLoader(CustomLoader loader)
         {
             customLoaders.Add(loader);

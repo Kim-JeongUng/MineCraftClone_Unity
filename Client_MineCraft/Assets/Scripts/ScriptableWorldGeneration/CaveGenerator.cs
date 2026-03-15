@@ -32,7 +32,7 @@ namespace Minecraft.ScriptableWorldGeneration
             int rand1 = random.Next();
             int rand2 = random.Next();
 
-            // 遍历周围 (range * 2 + 1) * (range * 2 + 1) 的区块，默认 range = 8
+            // (range * 2 + 1) * (range * 2 + 1) , 기본 range = 8 
             for (int x = pos.X - range; x <= pos.X + range; x++)
             {
                 for (int z = pos.Z - range; z <= pos.Z + range; z++)
@@ -48,10 +48,10 @@ namespace Minecraft.ScriptableWorldGeneration
 
         private void RecursiveGenerate(IWorld world, ChunkPos pos, ChunkPos center, BlockData[,,] blocks, BiomeData biome, Random random)
         {
-            // 之前根据 chunkXZ 设置种子了
+            // chunkXZ 설정 
             int seedPointCount = random.Next(15);
 
-            // 仅 1/7 概率生成洞穴
+            // 1/7 확률생성동굴 
             if (random.Next(7) != 0)
             {
                 seedPointCount = 0;
@@ -59,7 +59,7 @@ namespace Minecraft.ScriptableWorldGeneration
 
             for (int i = 0; i < seedPointCount; i++)
             {
-                // 在 chunk 内 x = 0-16, y = 8~127, z = 0-16 随机选种子点
+                // chunk x = 0-16, y = 8~127, z = 0-16 랜덤 
                 float seedPointX = pos.X * ChunkWidth + random.Next(ChunkWidth);
                 float seedPointY = random.Next(120) + 8;
                 float seedPointZ = pos.Z * ChunkWidth + random.Next(ChunkWidth);
@@ -67,15 +67,15 @@ namespace Minecraft.ScriptableWorldGeneration
 
                 Vector3 seedPoint = new Vector3(seedPointX, seedPointY, seedPointZ);
 
-                // 四分之一概率挖一个默认的洞
+                // 확률기본 
                 if (random.Next(4) == 0)
                 {
-                    // 使用默认参数挖出一个洞
+                    // 기본인자 
                     AddTunnel(world, center, blocks, biome, random.Next(), seedPoint, random);
                     directionCount += random.Next(4);
                 }
 
-                // 向几个方向挖洞
+                // 방향 
                 for (int j = 0; j < directionCount; j++)
                 {
                     float yawAngle = (float)random.NextDouble() * Mathf.PI * 2.0f;
@@ -84,7 +84,7 @@ namespace Minecraft.ScriptableWorldGeneration
 
                     if (random.Next(10) == 0)
                     {
-                        // 扩大到1~3倍
+                        // 1~3 
                         rangeScale *= (float)random.NextDouble() * 3.0f + 1.0f;
                     }
 
@@ -98,7 +98,6 @@ namespace Minecraft.ScriptableWorldGeneration
             AddTunnel(world, center, blocks, biome, seed, seedPoint, 1.0f + (float)random.NextDouble() * 6.0f, 0, 0, -1, -1, 0.5f);
         }
 
-        // 挖洞
         protected void AddTunnel(IWorld world, ChunkPos center, BlockData[,,] blocks, BiomeData biome, int seed, Vector3 seedPoint, float rangeScale, float yawAngle, float pitchAngle, int smallRange, int bigRange, float heightScale)
         {
             float centerBlockX = center.X * ChunkWidth + 8;
@@ -122,26 +121,24 @@ namespace Minecraft.ScriptableWorldGeneration
                 smallRangeIsNull = true;
             }
 
-            // 可能的扩展点
             int keyPoint = random.Next(bigRange / 2) + bigRange / 4;
 
             bool flag = random.Next(6) == 0;
 
-            // 循环挖出一条道路
             for (; smallRange < bigRange; smallRange++)
             {
-                // 用 sin 从 1 到 0 过渡
+                // sin 1 0 
                 float xzRange = 1.5f + Mathf.Sin(smallRange * Mathf.PI / bigRange) * rangeScale;
                 float yRange = xzRange * heightScale;
 
-                // 向 yawAngle、pitchAngle 方向偏移一个单位
+                // yawAngle、pitchAngle 방향 
                 float cos = Mathf.Cos(pitchAngle);
                 float sin = Mathf.Sin(pitchAngle);
                 seedPoint.x += Mathf.Cos(yawAngle) * cos;
                 seedPoint.y += sin;
                 seedPoint.z += Mathf.Sin(yawAngle) * cos;
 
-                // 1/6 概率俯仰角衰减较慢
+                // 1/6 확률 
                 if (flag)
                 {
                     pitchAngle *= 0.92f;
@@ -160,7 +157,6 @@ namespace Minecraft.ScriptableWorldGeneration
 
                 if (!smallRangeIsNull && smallRange == keyPoint && rangeScale > 1 && bigRange > 0)
                 {
-                    // 向左右两边扩展
                     AddTunnel(world, center, blocks, biome, random.Next(), seedPoint, (float)random.NextDouble() * 0.5f + 0.5f, yawAngle - Mathf.PI / 2f, pitchAngle / 3.0f, smallRange, bigRange, 1);
                     AddTunnel(world, center, blocks, biome, random.Next(), seedPoint, (float)random.NextDouble() * 0.5f + 0.5f, yawAngle + Mathf.PI / 2f, pitchAngle / 3.0f, smallRange, bigRange, 1);
                     return;
@@ -178,7 +174,7 @@ namespace Minecraft.ScriptableWorldGeneration
                         return;
                     }
 
-                    // 种子点在中心方块附近（不在的话说明不在这个区块内不用管）
+                    // 중심블록(않않않) 
                     if (seedPoint.x >= centerBlockX - 16 - xzRange * 2
                         && seedPoint.z >= centerBlockZ - 16 - xzRange * 2
                         && seedPoint.x <= centerBlockX + 16 + xzRange * 2
@@ -191,7 +187,7 @@ namespace Minecraft.ScriptableWorldGeneration
                         int startZ = Mathf.FloorToInt(seedPoint.z - xzRange) - center.Z * ChunkWidth - 1;
                         int endZ = Mathf.FloorToInt(seedPoint.z + xzRange) - center.Z * ChunkWidth + 1;
 
-                        // 限制坐标范围
+                        // 제한좌표 
                         startX = Mathf.Max(startX, 0);
                         endX = Mathf.Min(endX, 16);
                         startY = Mathf.Min(startY, 248);
@@ -199,7 +195,7 @@ namespace Minecraft.ScriptableWorldGeneration
                         startZ = Mathf.Max(startZ, 0);
                         endZ = Mathf.Min(endZ, 16);
 
-                        // 判断是不是海洋，如果在海洋则不生成洞穴
+                        // 않, 만약않생성동굴 
                         bool isOcean = false;
 
                         for (int x = startX; !isOcean && x < endX; x++)
@@ -215,7 +211,7 @@ namespace Minecraft.ScriptableWorldGeneration
                                             isOcean = true;
                                         }
 
-                                        // 只判断边界
+                                        // 경계 
                                         if (y != endY - 1
                                             && x != startX
                                             && x != endX - 1
@@ -231,10 +227,10 @@ namespace Minecraft.ScriptableWorldGeneration
 
                         if (!isOcean)
                         {
-                            // 挖掉一个椭球内的方块
+                            // 타원체블록 
                             for (int x = startX; x < endX; x++)
                             {
-                                // （归一化的距离）
+                                // (거리) 
                                 float xDist1 = ((x + center.X * ChunkWidth) + 0.5f - seedPoint.x) / xzRange;
 
                                 for (int z = startZ; z < endZ; z++)
@@ -242,10 +238,10 @@ namespace Minecraft.ScriptableWorldGeneration
                                     float zDist1 = ((z + center.Z * ChunkWidth) + 0.5f - seedPoint.z) / xzRange;
                                     bool isTopBlock = false;
 
-                                    // 平面上平方距离 < 1
+                                    // 거리 < 1 
                                     if (xDist1 * xDist1 + zDist1 * zDist1 < 1)
                                     {
-                                        // 先获取高度 (改为二分)
+                                        // 가져오기높이 () 
                                         int height = 64;
                                         int upBound = 255;
                                         int downbound = 1;
@@ -274,7 +270,7 @@ namespace Minecraft.ScriptableWorldGeneration
                                         {
                                             float yDist = ((y - 1) + 0.5f - seedPoint.y) / yRange;
 
-                                            // 空间平方距离 < 1
+                                            // 거리 < 1 
                                             if (yDist > -0.7f)
                                             {
                                                 if (xDist1 * xDist1 + yDist * yDist + zDist1 * zDist1 < 1)
@@ -287,7 +283,7 @@ namespace Minecraft.ScriptableWorldGeneration
                                                         isTopBlock = true;
                                                     }
 
-                                                    // 把这个方块替换为空气或岩浆
+                                                    // 블록교체공기용암 
                                                     DigBlock(world, x, y, z, center, blocks, biome, isTopBlock, curBlock, upBlock);
                                                 }
                                             }
@@ -327,26 +323,26 @@ namespace Minecraft.ScriptableWorldGeneration
                 BlockData sandBlock = world.BlockDataTable.GetBlock(m_SandBlock);
                 BlockData lavaBlock = world.BlockDataTable.GetBlock(m_LavaBlock);
 
-                // y < 10 放置岩浆
+                // y < 10 용암 
                 if (y < 10)
                 {
-                    // 设置为岩浆
+                    // 설정용암 
                     blocks[x, y, z] = lavaBlock;
                 }
                 else
                 {
-                    // 设置为空气
+                    // 설정공기 
                     blocks[x, y, z] = airBlock;
 
                     if (upBlock.InternalName == m_SandBlock)
                     {
-                        // 如果上面的方块是沙子则替换为沙石
+                        // 만약블록교체 
                         blocks[x, y + 1, z] = sandBlock;
                     }
 
                     if (foundTop && blocks[x, y - 1, z] == filler)
                     {
-                        // 如果挖开了顶层方块则把下面的方块设置为 biome 顶层方块
+                        // 만약블록블록설정 biome 블록 
                         blocks[x, y - 1, z] = top;
                     }
                 }

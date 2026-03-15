@@ -116,10 +116,10 @@ namespace Minecraft.Rendering
         {
             Vector3Int section = GetSection(x, y, z);
 
-            // 如果是内部系统进行的更新，那么没有必要，等待玩家走近后再一起生成
+            // 만약, , 플레이어생성 
             bool forceLoadMesh = source == ModificationSource.PlayerAction;
 
-            // 被标记为 important 后，会在主线程进行更新，量大的话容易卡
+            // important , 메인 스레드, 
             bool important = source == ModificationSource.PlayerAction;
 
             m_MeshManager.MarkSectionMeshDirty(section, forceLoadMesh, important);

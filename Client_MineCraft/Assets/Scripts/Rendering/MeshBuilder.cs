@@ -106,8 +106,8 @@ namespace Minecraft.Rendering
 
         public void ApplyAndClearBuffers(Mesh.MeshData meshData, MeshTopology topology)
         {
-            // 为了避免额外分配空间，SubMesh会在顶点和索引之前被提交，
-            // 如果Unity执行检查就可能会报错（主要是RecalculateBounds）。
+            // , SubMesh, 
+            // 만약Unity(RecalculateBounds). 
             const MeshUpdateFlags flags = MeshUpdateFlags.DontValidateIndices
                 | MeshUpdateFlags.DontResetBoneBounds
                 | MeshUpdateFlags.DontNotifyMeshUsers
@@ -143,14 +143,14 @@ namespace Minecraft.Rendering
 
         public void ApplyAndClearBuffers(Mesh mesh, MeshTopology topology, bool markNoLongerReadable, Allocator allocator)
         {
-            // 为了避免额外分配空间，SubMesh会在顶点和索引之前被提交，
-            // 如果Unity执行检查就可能会报错（主要是RecalculateBounds）。
+            // , SubMesh, 
+            // 만약Unity(RecalculateBounds). 
             const MeshUpdateFlags flags = MeshUpdateFlags.DontValidateIndices
                 | MeshUpdateFlags.DontResetBoneBounds
                 | MeshUpdateFlags.DontNotifyMeshUsers
                 | MeshUpdateFlags.DontRecalculateBounds;
 
-            mesh.subMeshCount = 0; // 防止多个 subMesh 共享三角形的警告
+            mesh.subMeshCount = 0; // 방지 subMesh 
             mesh.subMeshCount = m_IndexOffsetBuffer.Length;
             mesh.SetVertexBufferParams(m_VertexBuffer.Count, m_VertexAttributes);
             mesh.SetIndexBufferParams(m_IndexBuffer.Count, MeshIndexFormat);
@@ -190,7 +190,7 @@ namespace Minecraft.Rendering
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyMeshIndex(NativeArray<TIndex> destination, MeshIndex index)
         {
-            // 由于每一个SubMesh占有一段连续的Index，所以这里根据Index所属的SubMesh来进行填充。
+            // SubMeshIndex, IndexSubMesh. 
             destination[m_IndexOffsetBuffer[index.SubMeshIndex]++] = index.Value;
         }
 

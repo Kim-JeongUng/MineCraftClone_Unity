@@ -107,7 +107,7 @@ namespace Minecraft.Entities
 
         // private void SwitchRunMode(InputAction.CallbackContext context)
         // {
-        //     m_IsRunning = true;
+        //   m_IsRunning = true;
         // }
 
         private void SwitchFlyMode(InputAction.CallbackContext context)
@@ -128,9 +128,9 @@ namespace Minecraft.Entities
 
         private void Update()
         {
-            // 在 Update 里读取输入。
-            // 如果在 FixedUpdate 里读输入会出现丢失，
-            // 因为 FixedUpdate 不是按实际帧率执行
+            // Update 입력. 
+            // 만약 FixedUpdate 입력, 
+            // FixedUpdate 않 
             SwitchWalkAndRunMode();
 
             m_FirstPersonLook.LookRotation(m_LookAction.ReadValue<Vector2>(), Time.deltaTime);
@@ -159,13 +159,12 @@ namespace Minecraft.Entities
 
             if (UseGravity)
             {
-                velocity.y = Velocity.y; // 不管 y 方向
+                velocity.y = Velocity.y; // 않 y 방향 
 
                 bool isGrounded = GetIsGrounded(out BlockData groundBlock);
 
                 if (isGrounded && m_Jump)
                 {
-                    // 向上跳起
                     AddInstantForce(new Vector3(0, JumpHeight * Mass / Time.fixedDeltaTime, 0));
                     PlayBlockStepSound(groundBlock);
                     // m_Jump = false;
@@ -176,18 +175,14 @@ namespace Minecraft.Entities
             }
             else if (m_FlyDown)
             {
-                velocity.y = -FlyUpSpeed; // 向下飞
-            }
+                velocity.y = -FlyUpSpeed;            }
             else if (m_Jump)
             {
-                velocity.y = FlyUpSpeed; // 向上飞
-            }
+                velocity.y = FlyUpSpeed;            }
             else
             {
-                velocity.y = 0; // 停在空中
-            }
+                velocity.y = 0;            }
 
-            // 施加力来调整速度
             AddInstantForce((velocity - Velocity) * Mass / Time.fixedDeltaTime);
 
             base.FixedUpdate(); // move
@@ -241,14 +236,14 @@ namespace Minecraft.Entities
 
         private void SwitchWalkAndRunMode()
         {
-            // TODO: 如何用 Input System 实现这个功能？
+            // TODO: Input System ？ 
             if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow))
             {
                 float currentTime = Time.time;
 
                 if (currentTime - m_LastTimePressW <= 0.2f)
                 {
-                    // 此时认为玩家双击了 W 或者 向上箭头
+                    // 플레이어 W 
                     m_IsRunning = true;
                 }
 
@@ -262,7 +257,7 @@ namespace Minecraft.Entities
 
             if (input == Vector2.zero)
             {
-                // 一旦玩家停止移动，结束跑步状态
+                // 플레이어, 
                 m_IsRunning = false;
             }
 

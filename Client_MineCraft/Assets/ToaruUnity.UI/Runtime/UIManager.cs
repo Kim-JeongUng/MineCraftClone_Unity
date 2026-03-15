@@ -11,7 +11,7 @@ using Object = UnityEngine.Object;
 namespace ToaruUnity.UI
 {
     /// <summary>
-    /// UI管理类
+    /// UI 
     /// </summary>
     [DisallowMultipleComponent]
     public class UIManager : MonoBehaviour, IUIManager
@@ -33,26 +33,26 @@ namespace ToaruUnity.UI
         private IEqualityComparer<object> m_KeyComparer;
         private ViewStack m_Stack;
         private HybridDictionary<object, ViewPrefab> m_Prefabs;
-        private HybridDictionary<object, AbstractView> m_ViewPool; // 每一种View只缓存一份
+        private HybridDictionary<object, AbstractView> m_ViewPool; // View 
 
 
         /// <summary>
-        /// 获取打开的页面数量
+        /// 가져오기페이지개수 
         /// </summary>
         public int ViewCount => m_Stack.Count;
 
         /// <summary>
-        /// 获取页面的容器
+        /// 가져오기페이지 
         /// </summary>
         public Transform ViewContainer => m_ViewContainer;
 
         /// <summary>
-        /// 获取页面Key的比较器
+        /// 가져오기페이지Key 
         /// </summary>
         public IEqualityComparer<object> ViewKeyComparer => m_KeyComparer;
 
         /// <summary>
-        /// 打开页面事件
+        /// 페이지 
         /// </summary>
         public event UnityAction<object, AbstractView> OnViewOpened
         {
@@ -61,7 +61,7 @@ namespace ToaruUnity.UI
         }
 
         /// <summary>
-        /// 导航到页面事件
+        /// 페이지 
         /// </summary>
         public event UnityAction<object, AbstractView> OnViewNavigated
         {
@@ -70,7 +70,7 @@ namespace ToaruUnity.UI
         }
 
         /// <summary>
-        /// 关闭页面事件
+        /// 닫기페이지 
         /// </summary>
         public event UnityAction<object> OnViewClosed
         {
@@ -79,7 +79,7 @@ namespace ToaruUnity.UI
         }
 
         /// <summary>
-        /// 顶部页面变化事件
+        /// 페이지 
         /// </summary>
         public event UnityAction OnActiveViewChanged
         {
@@ -88,7 +88,7 @@ namespace ToaruUnity.UI
         }
 
         /// <summary>
-        /// 获取顶部的页面
+        /// 가져오기페이지 
         /// </summary>
         public AbstractView ActiveView => m_Stack[0];
 
@@ -172,12 +172,11 @@ namespace ToaruUnity.UI
                 return;
             }
 
-            //先导航
             if ((mode & SwitchViewMode.Navigate) == SwitchViewMode.Navigate)
             {
                 if (m_Stack.MatchTopKey(viewKey))
                 {
-                    // 要导航的页面已经在最顶层
+                    // 페이지이미 
                     callback?.Invoke(SwitchViewResult.Failed_BecauseNavigationIsUnnecessary, viewKey, ActiveView);
                     return;
                 }

@@ -332,7 +332,7 @@ namespace Minecraft.Assets
             asset.AssetBundle.DecreaseRef();
             LogMessage("Unload Asset: ", asset.AssetName);
 
-            // TODO: 延时卸载 AssetBundle
+            // TODO: 언로드 AssetBundle 
             if (asset.AssetBundle.RefCount == 0)
             {
                 UnloadAssetBundle(asset.AssetBundle);

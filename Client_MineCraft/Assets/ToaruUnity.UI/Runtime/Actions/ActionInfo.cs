@@ -5,35 +5,34 @@ using System.Reflection;
 namespace ToaruUnity.UI
 {
     /// <summary>
-    /// 表示一个操作
-    /// </summary>
+    /    /// </summary>
     public readonly struct ActionInfo : IEquatable<ActionInfo>
     {
         private readonly ActionCenter m_Center;
         private readonly MethodInfo m_Method;
 
         /// <summary>
-        /// 获取操作的名称
+        /// 가져오기 
         /// </summary>
         public string ActionName { get; }
 
         /// <summary>
-        /// 获取该对象是否合法
+        /// 가져오기객체여부 
         /// </summary>
         public bool IsValid => m_Center != null && m_Method != null;
 
         /// <summary>
-        /// 获取执行该操作的方法的名称
+        /// 가져오기 
         /// </summary>
         public string MethodName => m_Method.Name;
 
         /// <summary>
-        /// 获取该操作的参数的数量
+        /// 가져오기인자개수 
         /// </summary>
         public int ParameterCount => m_Method.GetParameters().Length;
 
         /// <summary>
-        /// 获取该操作是否为一个协程
+        /// 가져오기여부 
         /// </summary>
         public bool IsCoroutine => m_Method.ReturnType == typeof(IEnumerator<bool>);
 

@@ -3,34 +3,34 @@
 namespace Minecraft.Configurations
 {
     /// <summary>
-    /// 表示方块的一个面
+    /// 블록 
     /// </summary>
     [GCOptimize]
     [LuaCallCSharp]
     public enum BlockFace
     {
         /// <summary>
-        /// 法线方向为 (1, 0, 0) 的面
+        /// 방향 (1, 0, 0) 
         /// </summary>
         PositiveX = 0,
         /// <summary>
-        /// 法线方向为 (0, 1, 0) 的面
+        /// 방향 (0, 1, 0) 
         /// </summary>
         PositiveY = 1,
         /// <summary>
-        /// 法线方向为 (0, 0, 1) 的面
+        /// 방향 (0, 0, 1) 
         /// </summary>
         PositiveZ = 2,
         /// <summary>
-        /// 法线方向为 (-1, 0, 0) 的面
+        /// 방향 (-1, 0, 0) 
         /// </summary>
         NegativeX = 3,
         /// <summary>
-        /// 法线方向为 (0, -1, 0) 的面
+        /// 방향 (0, -1, 0) 
         /// </summary>
         NegativeY = 4,
         /// <summary>
-        /// 法线方向为 (0, 0, -1) 的面
+        /// 방향 (0, 0, -1) 
         /// </summary>
         NegativeZ = 5
     }

@@ -28,7 +28,7 @@ function tnt:is_lava(x, y, z, accessor)
 end
 
 function tnt:place(x, y, z)
-    -- 边上有岩浆直接炸
+    -- 옆에 용암이 있으면 즉시 폭발
     local accessor = self.world.RWAccessor
     local flag = self:is_lava(x - 1, y, z, accessor)
         or self:is_lava(x + 1, y, z, accessor)
@@ -59,7 +59,7 @@ function tnt:explode(center_x, center_y, center_z, radius, accessor)
 
             if block then
                 if block.InternalName == self.InternalName then
-                    self:click(world_x, world_y, world_z) -- 炸到 TNT 的话，让这个 TNT 也炸
+                    self:click(world_x, world_y, world_z) -- TNT를 폭발에 휘말리면 해당 TNT도 폭발
                 elseif not block:HasFlag(ignoreExplosionsFlag) then
                     accessor:SetBlock(world_x, world_y, world_z, self.air_block_data, quaternionIdentity, playerModification)
                 end
@@ -72,7 +72,7 @@ function tnt:entity_init(entity, context)
     entity.Mass = self.mass
     entity.GravityMultiplier = self.gravity_multiplier
 
-    -- 提前加载
+    -- 사전 로드
     context.explosionEffectAsset = assetManager:LoadAsset(explosionEffectAssetName, typeof(CS.UnityEngine.GameObject))
 end
 
@@ -98,7 +98,7 @@ function tnt:entity_on_collisions(entity, flags, context)
         local accessor = entity.World.RWAccessor
         local block = accessor:GetBlock(pos.x, pos.y, pos.z)
 
-        -- 水里爆炸不会破坏方块
+        -- 물속 폭발은 블록을 파괴하지 않음
         if block and block.InternalName ~= self.water_name then
             self:explode(pos.x, pos.y, pos.z, explodeRadius, accessor)
         end
@@ -112,7 +112,7 @@ function tnt:entity_on_collisions(entity, flags, context)
         entity.EnableRendering = false
         coroutine.yield(nil)
 
-        -- 这里不删除资源了，后面可能还要用
+        -- 여기서는 리소스를 삭제하지 않음(나중에 다시 사용할 수 있음)
         -- assetManager:UnloadAsset(context.explosionEffectAsset)
         self.world.EntityManager:DestroyEntity(entity)
     end))

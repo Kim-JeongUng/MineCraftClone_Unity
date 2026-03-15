@@ -9,15 +9,15 @@ namespace Minecraft.Configurations
     public enum BlockRotationAxes
     {
         /// <summary>
-        /// 不旋转
+        /// 않 
         /// </summary>
         None = 0,
         /// <summary>
-        /// 绕着 Y 轴旋转
+        /// Y 
         /// </summary>
         AroundYAxis = 1 << 0,
         /// <summary>
-        /// 绕着 X 轴或 Z 轴旋转
+        /// X Z 
         /// </summary>
         AroundXOrZAxis = 1 << 1
     }
