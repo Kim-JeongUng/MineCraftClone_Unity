@@ -1,31 +1,31 @@
-## xLua通用版本
+## xLua 범용 버전
 
-xLua通用版本致力于在C#环境提供lua脚本支持。相比Unity版本，仅去掉了诸如print重定向到Console窗口，Unity专用的脚本加载器。其它的一切功能都保留。特性列表请看[这里](../Assets/XLua/Doc/features.md)。
+xLua 범용 버전은 C# 환경에서 Lua 스크립트 지원을 제공하는 데 목적이 있습니다. Unity 버전과 비교해 print를 Console 창으로 리디렉션하는 기능, Unity 전용 스크립트 로더 등만 제거했고 나머지 기능은 모두 유지됩니다. 기능 목록은 [여기](../Assets/XLua/Doc/features.md)를 참고하세요.
 
-## 如何使用
+## 사용 방법
 
-将XLua.Mini.dll放入工程，对应版本的xlua本地动态库放到能通过pinvoke加载的路径下（比如程序执行目录）。
+XLua.Mini.dll을 프로젝트에 넣고, 해당 버전의 xlua 네이티브 동적 라이브러리를 pinvoke로 로드 가능한 경로(예: 실행 파일 디렉터리)에 배치하세요.
 
-## 生成代码[可选]
+## 코드 생성 [선택]
 
-XLua.Mini.dll是通过反射来实现lua与C#间的交互，需要更高性能，可以通过生成代码获得。
+XLua.Mini.dll은 리플렉션으로 Lua와 C# 간 상호작용을 처리합니다. 더 높은 성능이 필요하면 코드 생성을 사용할 수 있습니다.
 
-1、按教程[XLua的配置.doc](../Assets/XLua/Doc/XLua的配置.doc)配置好要生成的类型；
+1. [XLua의 설정.doc](../Assets/XLua/Doc/XLua%E7%9A%84%E9%85%8D%E7%BD%AE.doc) 문서에 따라 생성할 타입을 설정합니다.
 
-2、重新编译后，用配套的工具XLuaGenerate对工程的编译结果（exe或者dll）执行代码生成：XLuaGenerate xxx.exe/xxx.dll，生成代码会放在当前目录下的Gen目录。
+2. 다시 컴파일한 뒤 도구 `XLuaGenerate`로 빌드 결과(exe 또는 dll)에 대해 코드 생성을 실행합니다: `XLuaGenerate xxx.exe/xxx.dll`. 생성 코드는 현재 디렉터리의 `Gen` 폴더에 저장됩니다.
 
-3、新建一个和原来一样的工程，添加XLUA_GENERAL宏
+3. 기존과 동일한 새 프로젝트를 만들고 `XLUA_GENERAL` 매크로를 추가합니다.
 
-4、删除XLua.Mini.dll，加入XLua的配套源码包(发布包的Src目录)，加入步骤2的生成代码；
+4. `XLua.Mini.dll`을 제거하고 XLua 소스 패키지(배포판의 `Src` 디렉터리)와 2단계에서 생성한 코드를 추가합니다.
 
-5、这工程生成exe或者dll已经通过生成代码适配。
+5. 이제 이 프로젝트에서 생성되는 exe 또는 dll은 생성 코드에 맞게 적용됩니다.
 
 ## Hotfix
 
-对已经生成了代码的exe或者dll，用工具XLuaHotfixInject执行注入即可，Hotfix特性的详细使用请看[Hotfix操作指南](../Assets/XLua/Doc/hotfix.md)
+이미 코드 생성이 완료된 exe 또는 dll은 `XLuaHotfixInject` 도구로 주입하면 됩니다. Hotfix 기능 상세 사용법은 [Hotfix 가이드](../Assets/XLua/Doc/hotfix.md)를 참고하세요.
 
 
-## 快速入门
+## 빠른 시작
 
 ~~~csharp
 
