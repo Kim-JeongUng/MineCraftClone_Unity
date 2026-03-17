@@ -9,7 +9,7 @@
     "com.unity.inputsystem": "1.4.1",
     "com.unity.jobs": "0.70.0-preview.7",
     "com.unity.memoryprofiler": "1.1.12",
-    "com.unity.nuget.newtonsoft-json": "3.0.2",
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.unity.postprocessing": "3.2.2",
     "com.unity.recorder": "3.0.3",
     "com.unity.render-pipelines.core": "12.1.7",
@@ -18,7 +18,7 @@
     "com.unity.test-framework": "1.1.31",
     "com.unity.textmeshpro": "3.0.6",
     "com.unity.timeline": "1.6.4",
-    "com.unity.ugui": "1.0.0",
+    "com.unity.ugui": "2.0.0",
     "com.unity.modules.ai": "1.0.0",
     "com.unity.modules.androidjni": "1.0.0",
     "com.unity.modules.animation": "1.0.0",
@@ -49,7 +49,6 @@
     "com.unity.modules.video": "1.0.0",
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
-    "com.unity.modules.xr": "1.0.0",
-    "com.mirror-networking.mirror": "https://github.com/MirrorNetworking/Mirror.git#v89.0.0"
+    "com.unity.modules.xr": "1.0.0"
   }
 }
