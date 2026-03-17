@@ -57,6 +57,15 @@ namespace Minecraft.Entities
             }
         }
 
+
+        public void SetMainCamera(Camera camera)
+        {
+            if (camera != null)
+            {
+                m_MainCamera = camera;
+            }
+        }
+
         private void Update()
         {
             if (m_RenderableEntities != null)

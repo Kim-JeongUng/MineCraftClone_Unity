@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Minecraft.Configurations;
+using Minecraft.Multiplayer;
 using UnityEngine;
 using static Minecraft.Rendering.LightingUtility;
 using static Minecraft.WorldConsts;
@@ -135,6 +136,11 @@ namespace Minecraft
 
         IEnumerator EnablePlayer()
         {
+            if (GameModeContext.IsMultiplayer)
+            {
+                yield break;
+            }
+
             yield return new WaitForSeconds(5);
             GameObject.FindGameObjectWithTag("Player").GetComponent<Minecraft.Entities.PlayerEntity>().enabled = true;
         }

@@ -77,6 +77,16 @@ namespace Minecraft
 
         public EntityManager EntityManager => m_EntityManager;
 
+        public void OverrideLocalPlayerReferences(Transform player, Camera mainCamera)
+        {
+            if (player != null) m_Player = player;
+            if (mainCamera != null)
+            {
+                m_MainCamera = mainCamera;
+                m_EntityManager?.SetMainCamera(mainCamera);
+            }
+        }
+
         public int MaxTickBlockCountPerFrame
         {
             get => m_MaxTickBlockCountPerFrame;
