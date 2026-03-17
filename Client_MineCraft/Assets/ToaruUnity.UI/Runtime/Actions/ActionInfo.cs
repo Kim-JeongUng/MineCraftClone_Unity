@@ -4,8 +4,6 @@ using System.Reflection;
 
 namespace ToaruUnity.UI
 {
-    /// <summary>
-    /    /// </summary>
     public readonly struct ActionInfo : IEquatable<ActionInfo>
     {
         private readonly ActionCenter m_Center;

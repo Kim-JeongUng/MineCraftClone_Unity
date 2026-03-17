@@ -3,7 +3,7 @@
 namespace ToaruUnity.UI
 {
     /// <summary>
-    /    /// </summary>
+    /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
     public sealed class ActionAttribute : Attribute
     {
@@ -18,7 +18,7 @@ namespace ToaruUnity.UI
         public ActionAttribute() { }
 
         /// <summary>
-        /        /// </summary>
+         /// </summary>
         /// <param name="actionName">, 만약null, 기본</param> 
         public ActionAttribute(string actionName)
         {

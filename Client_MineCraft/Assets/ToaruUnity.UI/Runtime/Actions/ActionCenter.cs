@@ -31,7 +31,9 @@ namespace ToaruUnity.UI
 
 
         /// <summary>
-        /        /// </summary>
+        ///        
+        
+        /// </summary>
         /// <param name="state"></param> 
         internal delegate void StateChangeHandler(IActionState state);
 

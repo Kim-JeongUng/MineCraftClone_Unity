@@ -1,6 +1,7 @@
 ﻿namespace ToaruUnity.UI
 {
     /// <summary>
-    /    /// </summary>
+    ///   
+    /// </summary>
     public interface IActionState { }
 }
