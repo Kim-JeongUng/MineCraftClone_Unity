@@ -33,12 +33,12 @@ namespace Minecraft.Multiplayer
                 yield return null;
             }
 
+            Transform previousPlayerTransform = world.PlayerTransform;
             world.OverrideLocalPlayerReferences(transform, m_PlayerCamera);
 
-            GameObject scenePlayer = GameObject.FindGameObjectWithTag("Player");
-            if (scenePlayer != null && scenePlayer != gameObject)
+            if (previousPlayerTransform != null && previousPlayerTransform != transform)
             {
-                scenePlayer.SetActive(false);
+                previousPlayerTransform.gameObject.SetActive(false);
             }
 
             Debug.Log("[MP] Local network player entered world and references were rebound.");

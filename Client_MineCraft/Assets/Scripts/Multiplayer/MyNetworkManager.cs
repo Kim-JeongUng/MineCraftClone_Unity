@@ -1,3 +1,4 @@
+using Minecraft;
 using Mirror;
 using kcp2k;
 using UnityEngine;
@@ -66,10 +67,9 @@ namespace Minecraft.Multiplayer
                 return m_FallbackSpawnPoint;
             }
 
-            GameObject existingPlayer = GameObject.FindGameObjectWithTag("Player");
-            if (existingPlayer != null)
+            if (World.Active is World world && world.PlayerTransform != null)
             {
-                return existingPlayer.transform;
+                return world.PlayerTransform;
             }
 
             return transform;

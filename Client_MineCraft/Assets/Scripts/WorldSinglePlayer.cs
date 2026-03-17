@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Minecraft.Configurations;
+using Minecraft.Entities;
 using Minecraft.Multiplayer;
 using UnityEngine;
 using static Minecraft.Rendering.LightingUtility;
@@ -134,7 +135,7 @@ namespace Minecraft
             }
         }
 
-        IEnumerator EnablePlayer()
+        private IEnumerator EnablePlayer()
         {
             if (GameModeContext.IsMultiplayer)
             {
@@ -142,7 +143,20 @@ namespace Minecraft
             }
 
             yield return new WaitForSeconds(5);
-            GameObject.FindGameObjectWithTag("Player").GetComponent<Minecraft.Entities.PlayerEntity>().enabled = true;
+
+            if (PlayerTransform == null)
+            {
+                Debug.LogWarning("[WorldSinglePlayer] PlayerTransform is not assigned. Skipping PlayerEntity enable.");
+                yield break;
+            }
+
+            if (!PlayerTransform.TryGetComponent(out PlayerEntity playerEntity))
+            {
+                Debug.LogWarning("[WorldSinglePlayer] PlayerTransform has no PlayerEntity. Skipping enable.");
+                yield break;
+            }
+
+            playerEntity.enabled = true;
         }
 
         public override void LightBlock(int x, int y, int z, ModificationSource source)
