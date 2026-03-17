@@ -1,4 +1,5 @@
 using Mirror;
+using kcp2k;
 using UnityEngine;
 
 namespace Minecraft.Multiplayer
@@ -12,7 +13,7 @@ namespace Minecraft.Multiplayer
             base.OnStartServer();
 
             ushort port = 0;
-            if (Transport.activeTransport is KcpTransport kcp)
+            if (Transport.active is KcpTransport kcp)
             {
                 port = kcp.Port;
             }

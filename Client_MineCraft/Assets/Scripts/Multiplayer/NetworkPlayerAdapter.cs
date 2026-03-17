@@ -1,4 +1,5 @@
 using System.Collections;
+using Minecraft;
 using Minecraft.Entities;
 using Mirror;
 using UnityEngine;
@@ -25,8 +26,10 @@ namespace Minecraft.Multiplayer
 
         private IEnumerator BindWorldAndDisableScenePlayer()
         {
-            while (!(World.Active is World world))
+            World world = null;
+            while (world == null)
             {
+                world = World.Active as World;
                 yield return null;
             }
 
