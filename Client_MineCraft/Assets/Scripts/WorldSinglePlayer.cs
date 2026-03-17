@@ -137,10 +137,10 @@ namespace Minecraft
 
         private IEnumerator EnablePlayer()
         {
-            if (GameModeContext.IsMultiplayer)
-            {
-                yield break;
-            }
+            // if (GameModeContext.IsMultiplayer)
+            // {
+            //     yield break;
+            // }
 
             yield return new WaitForSeconds(5);
 
