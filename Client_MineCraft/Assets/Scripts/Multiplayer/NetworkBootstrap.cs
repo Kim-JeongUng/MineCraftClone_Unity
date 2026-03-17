@@ -44,6 +44,10 @@ namespace Minecraft.Multiplayer
             GameModeContext.SetMode(ToRuntimeMode(m_Mode));
             Debug.Log($"[MP] Bootstrap mode={m_Mode}, multiplayer={GameModeContext.IsMultiplayer}, server={GameModeContext.IsServer}, client={GameModeContext.IsClient}, address={m_NetworkAddress}:{m_KcpPort}");
 
+        }
+
+        private void Start()
+        {
             if (!m_AutoStart)
             {
                 return;
