@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System;
 using Minecraft;
 using Mirror;
 using kcp2k;
@@ -24,6 +25,7 @@ namespace Minecraft.Multiplayer
         [SerializeField] [Min(1f)] private float m_SpawnPreparationTimeoutSeconds = 10f;
 
         private readonly Dictionary<int, Coroutine> m_PendingSpawnCoroutines = new Dictionary<int, Coroutine>();
+        private int m_RuntimeMultiplayerSeed;
 
         public void PreconfigureWorldForCurrentMode()
         {
@@ -39,6 +41,7 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
+            EnsureAuthoritativeSeedInitialized();
             ApplyLocalWorldSetting(GetAuthoritativeSeed());
             Debug.Log($"[MP] Preconfigured local multiplayer world. mode={GameModeContext.Mode}, seed={GetAuthoritativeSeed()}");
         }
@@ -133,6 +136,7 @@ namespace Minecraft.Multiplayer
             m_PendingSpawnCoroutines.Clear();
             EnsureSpawnServiceReference();
             m_SpawnService.ResetReservations();
+            m_RuntimeMultiplayerSeed = 0;
             base.OnStopServer();
         }
 
@@ -271,6 +275,7 @@ namespace Minecraft.Multiplayer
 
         private void ApplyServerWorldSetting()
         {
+            EnsureAuthoritativeSeedInitialized();
             ApplyLocalWorldSetting(GetAuthoritativeSeed());
             Debug.Log($"[MP] Server authoritative world seed prepared. seed={GetAuthoritativeSeed()}, scene={SceneManager.GetActiveScene().name}");
         }
@@ -293,7 +298,24 @@ namespace Minecraft.Multiplayer
 
         private int GetAuthoritativeSeed()
         {
-            return m_MultiplayerSeed != 0 ? m_MultiplayerSeed : 13579;
+            return m_RuntimeMultiplayerSeed != 0 ? m_RuntimeMultiplayerSeed : m_MultiplayerSeed;
+        }
+
+        private void EnsureAuthoritativeSeedInitialized()
+        {
+            if (!GameModeContext.IsServer || m_RuntimeMultiplayerSeed != 0)
+            {
+                return;
+            }
+
+            m_RuntimeMultiplayerSeed = GenerateTimeBasedSeed();
+        }
+
+        private static int GenerateTimeBasedSeed()
+        {
+            long ticks = DateTime.UtcNow.Ticks;
+            int seed = unchecked((int)(ticks ^ (ticks >> 32)));
+            return seed == 0 ? 13579 : seed;
         }
 
         private void OnWorldSettingsReceived(WorldSettingsMessage message)
