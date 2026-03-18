@@ -76,7 +76,7 @@ namespace Minecraft.Entities
                 {
                     var entity = iterator.Current;
 
-                    if (entity.EnableRendering)
+                    if (entity.EnableRendering && m_MainCamera != null)
                     {
                         entity.Render(m_RenderLayer, m_MainCamera, ShadowCastingMode.On, true);
                     }

@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Minecraft.Configurations;
 using Minecraft.Entities;
-using Minecraft.Multiplayer;
 using UnityEngine;
 using static Minecraft.Rendering.LightingUtility;
 using static Minecraft.WorldConsts;
@@ -137,23 +136,14 @@ namespace Minecraft
 
         private IEnumerator EnablePlayer()
         {
-            // if (GameModeContext.IsMultiplayer)
-            // {
-            //     yield break;
-            // }
-
-            yield return new WaitForSeconds(5);
-
-            if (PlayerTransform == null)
+            while (PlayerTransform == null)
             {
-                Debug.LogWarning("[WorldSinglePlayer] PlayerTransform is not assigned. Skipping PlayerEntity enable.");
-                yield break;
+                yield return null;
             }
 
-            if (!PlayerTransform.TryGetComponent(out PlayerEntity playerEntity))
+            while (!PlayerTransform.TryGetComponent(out PlayerEntity playerEntity))
             {
-                Debug.LogWarning("[WorldSinglePlayer] PlayerTransform has no PlayerEntity. Skipping enable.");
-                yield break;
+                yield return null;
             }
 
             playerEntity.enabled = true;
