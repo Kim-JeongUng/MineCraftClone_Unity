@@ -270,10 +270,10 @@ namespace Minecraft.Multiplayer
             }
         }
 
-        public bool TryRemoveBlockOnServer(int x, int y, int z)
+        public bool TrySetBlockOnServer(int x, int y, int z, int blockId, Quaternion rotation)
         {
             EnsureBlockRemovalSystemReference();
-            return m_BlockRemovalSystem != null && m_BlockRemovalSystem.TryRemoveBlockOnServer(x, y, z);
+            return m_BlockRemovalSystem != null && m_BlockRemovalSystem.TrySetBlockOnServer(x, y, z, blockId, rotation);
         }
 
         private void RemovePendingSpawnRecord(int connectionId)

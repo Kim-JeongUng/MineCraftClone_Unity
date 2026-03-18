@@ -3,64 +3,74 @@ using System.Collections.Generic;
 using Minecraft.Configurations;
 using Mirror;
 using UnityEngine;
-using static Minecraft.WorldConsts;
 
 namespace Minecraft.Multiplayer
 {
     [DisallowMultipleComponent]
     public class MultiplayerBlockRemovalSystem : MonoBehaviour
     {
-        public struct RequestChunkRemovalsMessage : NetworkMessage
+        public struct RequestChunkBlockChangesMessage : NetworkMessage
         {
             public int ChunkX;
             public int ChunkZ;
         }
 
-        public struct ChunkRemovalsSnapshotMessage : NetworkMessage
+        public struct ChunkBlockChangesSnapshotMessage : NetworkMessage
         {
             public int ChunkX;
             public int ChunkZ;
-            public int[] RemovedBlockIndices;
+            public int[] LocalIndices;
+            public int[] BlockIds;
+            public Quaternion[] Rotations;
         }
 
-        public struct BlockRemovedDeltaMessage : NetworkMessage
+        public struct BlockChangedDeltaMessage : NetworkMessage
         {
             public int X;
             public int Y;
             public int Z;
+            public int BlockId;
+            public Quaternion Rotation;
         }
 
-        private readonly Dictionary<ChunkPos, HashSet<int>> m_ServerRemovedBlocksByChunk = new Dictionary<ChunkPos, HashSet<int>>();
-        private readonly Dictionary<ChunkPos, HashSet<int>> m_ClientKnownRemovedBlocksByChunk = new Dictionary<ChunkPos, HashSet<int>>();
+        private struct BlockChangeState
+        {
+            public int BlockId;
+            public Quaternion Rotation;
+        }
+
+        private readonly Dictionary<ChunkPos, Dictionary<int, BlockChangeState>> m_ServerBlockChangesByChunk = new Dictionary<ChunkPos, Dictionary<int, BlockChangeState>>();
+        private readonly Dictionary<ChunkPos, Dictionary<int, BlockChangeState>> m_ClientBlockChangesByChunk = new Dictionary<ChunkPos, Dictionary<int, BlockChangeState>>();
+
         private Coroutine m_WorldBindingRoutine;
         private World m_BoundWorld;
 
         public void StartServer()
         {
-            NetworkServer.RegisterHandler<RequestChunkRemovalsMessage>(OnServerRequestChunkRemovals, false);
+            NetworkServer.RegisterHandler<RequestChunkBlockChangesMessage>(OnServerRequestChunkBlockChanges, false);
             BindWorldCallbacks();
         }
 
         public void StopServer()
         {
-            m_ServerRemovedBlocksByChunk.Clear();
+            m_ServerBlockChangesByChunk.Clear();
             UnbindWorldCallbacks();
         }
 
         public void StartClient()
         {
-            NetworkClient.RegisterHandler<ChunkRemovalsSnapshotMessage>(OnClientChunkSnapshotReceived, false);
-            NetworkClient.RegisterHandler<BlockRemovedDeltaMessage>(OnClientBlockRemovedDeltaReceived, false);
+            NetworkClient.RegisterHandler<ChunkBlockChangesSnapshotMessage>(OnClientChunkSnapshotReceived, false);
+            NetworkClient.RegisterHandler<BlockChangedDeltaMessage>(OnClientBlockChangedDeltaReceived, false);
             BindWorldCallbacks();
         }
 
         public void StopClient()
         {
-            m_ClientKnownRemovedBlocksByChunk.Clear();
+            m_ClientBlockChangesByChunk.Clear();
             UnbindWorldCallbacks();
         }
 
-        public bool TryRemoveBlockOnServer(int x, int y, int z)
+        public bool TrySetBlockOnServer(int x, int y, int z, int blockId, Quaternion rotation)
         {
             if (!NetworkServer.active)
             {
@@ -73,26 +83,39 @@ namespace Minecraft.Multiplayer
                 return false;
             }
 
-            BlockData airBlock = world.BlockDataTable.GetBlock(0);
-            if (airBlock == null)
+            if (y < 0 || y >= WorldConsts.ChunkHeight || blockId < 0 || blockId >= world.BlockDataTable.BlockCount)
             {
                 return false;
             }
 
-            if (!world.RWAccessor.SetBlock(x, y, z, airBlock, Quaternion.identity, ModificationSource.PlayerAction))
+            BlockData targetBlock = world.BlockDataTable.GetBlock(blockId);
+            if (targetBlock == null)
+            {
+                return false;
+            }
+
+            if (!world.RWAccessor.SetBlock(x, y, z, targetBlock, rotation, ModificationSource.PlayerAction))
             {
                 return false;
             }
 
             ChunkPos chunkPos = ChunkPos.GetFromAny(x, z);
-            if (!m_ServerRemovedBlocksByChunk.TryGetValue(chunkPos, out HashSet<int> removedBlocks))
+            int localIndex = ToLocalBlockIndex(x - chunkPos.X, y, z - chunkPos.Z);
+            Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateServerChunkChanges(chunkPos);
+            chunkChanges[localIndex] = new BlockChangeState
             {
-                removedBlocks = new HashSet<int>();
-                m_ServerRemovedBlocksByChunk.Add(chunkPos, removedBlocks);
-            }
+                BlockId = blockId,
+                Rotation = rotation
+            };
 
-            removedBlocks.Add(ToLocalBlockIndex(x - chunkPos.X, y, z - chunkPos.Z));
-            NetworkServer.SendToAll(new BlockRemovedDeltaMessage { X = x, Y = y, Z = z });
+            NetworkServer.SendToAll(new BlockChangedDeltaMessage
+            {
+                X = x,
+                Y = y,
+                Z = z,
+                BlockId = blockId,
+                Rotation = rotation
+            });
             return true;
         }
 
@@ -160,16 +183,20 @@ namespace Minecraft.Multiplayer
 
             if (NetworkClient.isConnected)
             {
-                NetworkClient.Send(new RequestChunkRemovalsMessage { ChunkX = chunkPos.X, ChunkZ = chunkPos.Z });
+                NetworkClient.Send(new RequestChunkBlockChangesMessage
+                {
+                    ChunkX = chunkPos.X,
+                    ChunkZ = chunkPos.Z
+                });
             }
 
-            if (m_ClientKnownRemovedBlocksByChunk.TryGetValue(chunkPos, out HashSet<int> removedBlocks))
+            if (m_ClientBlockChangesByChunk.TryGetValue(chunkPos, out Dictionary<int, BlockChangeState> chunkChanges))
             {
-                ApplyRemovalsToLoadedChunk(chunkPos, removedBlocks);
+                ApplyChunkChangesIfLoaded(chunkPos, chunkChanges);
             }
         }
 
-        private void OnServerRequestChunkRemovals(NetworkConnectionToClient conn, RequestChunkRemovalsMessage message)
+        private void OnServerRequestChunkBlockChanges(NetworkConnectionToClient conn, RequestChunkBlockChangesMessage message)
         {
             if (conn == null)
             {
@@ -177,64 +204,94 @@ namespace Minecraft.Multiplayer
             }
 
             ChunkPos chunkPos = ChunkPos.Get(message.ChunkX, message.ChunkZ);
-            int[] removedIndices = null;
-
-            if (m_ServerRemovedBlocksByChunk.TryGetValue(chunkPos, out HashSet<int> removedBlocks) && removedBlocks.Count > 0)
-            {
-                removedIndices = new int[removedBlocks.Count];
-                removedBlocks.CopyTo(removedIndices);
-            }
-
-            conn.Send(new ChunkRemovalsSnapshotMessage
+            ChunkBlockChangesSnapshotMessage snapshot = new ChunkBlockChangesSnapshotMessage
             {
                 ChunkX = chunkPos.X,
-                ChunkZ = chunkPos.Z,
-                RemovedBlockIndices = removedIndices
-            });
-        }
+                ChunkZ = chunkPos.Z
+            };
 
-        private void OnClientChunkSnapshotReceived(ChunkRemovalsSnapshotMessage message)
-        {
-            ChunkPos chunkPos = ChunkPos.Get(message.ChunkX, message.ChunkZ);
-            HashSet<int> removedBlocks = GetOrCreateClientChunkState(chunkPos, clearExisting: true);
-
-            if (message.RemovedBlockIndices != null)
+            if (m_ServerBlockChangesByChunk.TryGetValue(chunkPos, out Dictionary<int, BlockChangeState> chunkChanges) && chunkChanges.Count > 0)
             {
-                for (int i = 0; i < message.RemovedBlockIndices.Length; i++)
+                int count = chunkChanges.Count;
+                snapshot.LocalIndices = new int[count];
+                snapshot.BlockIds = new int[count];
+                snapshot.Rotations = new Quaternion[count];
+
+                int i = 0;
+                foreach (KeyValuePair<int, BlockChangeState> pair in chunkChanges)
                 {
-                    removedBlocks.Add(message.RemovedBlockIndices[i]);
+                    snapshot.LocalIndices[i] = pair.Key;
+                    snapshot.BlockIds[i] = pair.Value.BlockId;
+                    snapshot.Rotations[i] = pair.Value.Rotation;
+                    i++;
                 }
             }
 
-            ApplyRemovalsToLoadedChunk(chunkPos, removedBlocks);
+            conn.Send(snapshot);
         }
 
-        private void OnClientBlockRemovedDeltaReceived(BlockRemovedDeltaMessage message)
+        private void OnClientChunkSnapshotReceived(ChunkBlockChangesSnapshotMessage message)
+        {
+            ChunkPos chunkPos = ChunkPos.Get(message.ChunkX, message.ChunkZ);
+            Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateClientChunkChanges(chunkPos, clearExisting: true);
+
+            int count = message.LocalIndices != null ? message.LocalIndices.Length : 0;
+            for (int i = 0; i < count; i++)
+            {
+                chunkChanges[message.LocalIndices[i]] = new BlockChangeState
+                {
+                    BlockId = message.BlockIds[i],
+                    Rotation = message.Rotations[i]
+                };
+            }
+
+            ApplyChunkChangesIfLoaded(chunkPos, chunkChanges);
+        }
+
+        private void OnClientBlockChangedDeltaReceived(BlockChangedDeltaMessage message)
         {
             ChunkPos chunkPos = ChunkPos.GetFromAny(message.X, message.Z);
-            HashSet<int> removedBlocks = GetOrCreateClientChunkState(chunkPos, clearExisting: false);
-            removedBlocks.Add(ToLocalBlockIndex(message.X - chunkPos.X, message.Y, message.Z - chunkPos.Z));
-            ApplyRemovalIfChunkLoaded(message.X, message.Y, message.Z);
+            int localIndex = ToLocalBlockIndex(message.X - chunkPos.X, message.Y, message.Z - chunkPos.Z);
+
+            Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateClientChunkChanges(chunkPos, clearExisting: false);
+            chunkChanges[localIndex] = new BlockChangeState
+            {
+                BlockId = message.BlockId,
+                Rotation = message.Rotation
+            };
+
+            ApplyBlockChangeIfLoaded(message.X, message.Y, message.Z, message.BlockId, message.Rotation);
         }
 
-        private HashSet<int> GetOrCreateClientChunkState(ChunkPos chunkPos, bool clearExisting)
+        private Dictionary<int, BlockChangeState> GetOrCreateServerChunkChanges(ChunkPos chunkPos)
         {
-            if (!m_ClientKnownRemovedBlocksByChunk.TryGetValue(chunkPos, out HashSet<int> removedBlocks))
+            if (!m_ServerBlockChangesByChunk.TryGetValue(chunkPos, out Dictionary<int, BlockChangeState> chunkChanges))
             {
-                removedBlocks = new HashSet<int>();
-                m_ClientKnownRemovedBlocksByChunk.Add(chunkPos, removedBlocks);
+                chunkChanges = new Dictionary<int, BlockChangeState>();
+                m_ServerBlockChangesByChunk.Add(chunkPos, chunkChanges);
+            }
+
+            return chunkChanges;
+        }
+
+        private Dictionary<int, BlockChangeState> GetOrCreateClientChunkChanges(ChunkPos chunkPos, bool clearExisting)
+        {
+            if (!m_ClientBlockChangesByChunk.TryGetValue(chunkPos, out Dictionary<int, BlockChangeState> chunkChanges))
+            {
+                chunkChanges = new Dictionary<int, BlockChangeState>();
+                m_ClientBlockChangesByChunk.Add(chunkPos, chunkChanges);
             }
             else if (clearExisting)
             {
-                removedBlocks.Clear();
+                chunkChanges.Clear();
             }
 
-            return removedBlocks;
+            return chunkChanges;
         }
 
-        private void ApplyRemovalsToLoadedChunk(ChunkPos chunkPos, HashSet<int> removedBlocks)
+        private void ApplyChunkChangesIfLoaded(ChunkPos chunkPos, Dictionary<int, BlockChangeState> chunkChanges)
         {
-            if (removedBlocks == null || removedBlocks.Count == 0)
+            if (chunkChanges == null || chunkChanges.Count == 0)
             {
                 return;
             }
@@ -250,17 +307,22 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            foreach (int localIndex in removedBlocks)
+            foreach (KeyValuePair<int, BlockChangeState> pair in chunkChanges)
             {
-                FromLocalBlockIndex(localIndex, out int localX, out int y, out int localZ);
-                ApplyRemovalIfChunkLoaded(chunkPos.X + localX, y, chunkPos.Z + localZ);
+                FromLocalBlockIndex(pair.Key, out int localX, out int y, out int localZ);
+                ApplyBlockChangeIfLoaded(chunkPos.X + localX, y, chunkPos.Z + localZ, pair.Value.BlockId, pair.Value.Rotation);
             }
         }
 
-        private void ApplyRemovalIfChunkLoaded(int x, int y, int z)
+        private void ApplyBlockChangeIfLoaded(int x, int y, int z, int blockId, Quaternion rotation)
         {
             World world = World.Active as World;
-            if (world == null || !world.Initialized || world.BlockDataTable == null)
+            if (world == null || !world.Initialized || world.BlockDataTable == null || world.ChunkManager == null)
+            {
+                return;
+            }
+
+            if (blockId < 0 || blockId >= world.BlockDataTable.BlockCount)
             {
                 return;
             }
@@ -271,13 +333,13 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            BlockData airBlock = world.BlockDataTable.GetBlock(0);
-            if (airBlock == null)
+            BlockData block = world.BlockDataTable.GetBlock(blockId);
+            if (block == null)
             {
                 return;
             }
 
-            world.RWAccessor.SetBlock(x, y, z, airBlock, Quaternion.identity, ModificationSource.InternalOrSystem);
+            world.RWAccessor.SetBlock(x, y, z, block, rotation, ModificationSource.InternalOrSystem);
         }
 
         private static int ToLocalBlockIndex(int localX, int y, int localZ)

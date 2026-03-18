@@ -158,16 +158,17 @@ namespace Minecraft.PlayerControls
                             {
                                 SetDigProgress(0);
                                 m_IsDigging = false;
+                                BlockData airBlock = world.BlockDataTable.GetBlock(0);
                                 if (GameModeContext.IsMultiplayer)
                                 {
-                                    if (m_NetworkPlayerAdapter == null || !m_NetworkPlayerAdapter.RequestRemoveBlock(hit.Position))
+                                    if (m_NetworkPlayerAdapter == null || !m_NetworkPlayerAdapter.RequestSetBlock(hit.Position, airBlock, Quaternion.identity))
                                     {
                                         Debug.LogWarning($"[MP] Failed to send block removal request for {hit.Position}.");
                                     }
                                 }
                                 else
                                 {
-                                    world.RWAccessor.SetBlock(hit.Position.x, hit.Position.y, hit.Position.z, world.BlockDataTable.GetBlock(0), Quaternion.identity, ModificationSource.PlayerAction);
+                                    world.RWAccessor.SetBlock(hit.Position.x, hit.Position.y, hit.Position.z, airBlock, Quaternion.identity, ModificationSource.PlayerAction);
                                 }
 
                                 //block.PlayDigAudio(m_AudioSource);
@@ -259,7 +260,17 @@ namespace Minecraft.PlayerControls
                             rotation *= Quaternion.LookRotation(-forward.normalized, Vector3.up); // 플레이어 
                         }
 
-                        world.RWAccessor.SetBlock(pos.x, pos.y, pos.z, block, rotation, ModificationSource.PlayerAction);
+                        if (GameModeContext.IsMultiplayer)
+                        {
+                            if (m_NetworkPlayerAdapter == null || !m_NetworkPlayerAdapter.RequestSetBlock(pos, block, rotation))
+                            {
+                                Debug.LogWarning($"[MP] Failed to send block placement request for {pos} ({block.InternalName}).");
+                            }
+                        }
+                        else
+                        {
+                            world.RWAccessor.SetBlock(pos.x, pos.y, pos.z, block, rotation, ModificationSource.PlayerAction);
+                        }
                     }
                 }
             }

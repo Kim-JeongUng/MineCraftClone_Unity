@@ -1,5 +1,6 @@
 using System.Collections;
 using Minecraft;
+using Minecraft.Configurations;
 using Minecraft.Entities;
 using Mirror;
 using UnityEngine;
@@ -19,9 +20,9 @@ namespace Minecraft.Multiplayer
 
         private bool IsOwnedLocally => isLocalPlayer || isOwned;
 
-        public bool RequestRemoveBlock(Vector3Int position)
+        public bool RequestSetBlock(Vector3Int position, BlockData block, Quaternion rotation)
         {
-            if (!GameModeContext.IsMultiplayer)
+            if (!GameModeContext.IsMultiplayer || block == null)
             {
                 return false;
             }
@@ -33,10 +34,10 @@ namespace Minecraft.Multiplayer
 
             if (isServer)
             {
-                return TryRemoveBlockOnServer(position.x, position.y, position.z);
+                return TrySetBlockOnServer(position.x, position.y, position.z, block.ID, rotation);
             }
 
-            CmdRemoveBlock(position.x, position.y, position.z);
+            CmdSetBlock(position.x, position.y, position.z, block.ID, rotation);
             return true;
         }
 
@@ -133,13 +134,13 @@ namespace Minecraft.Multiplayer
         }
 
         [Command]
-        private void CmdRemoveBlock(int x, int y, int z)
+        private void CmdSetBlock(int x, int y, int z, int blockId, Quaternion rotation)
         {
-            TryRemoveBlockOnServer(x, y, z);
+            TrySetBlockOnServer(x, y, z, blockId, rotation);
         }
 
         [Server]
-        private bool TryRemoveBlockOnServer(int x, int y, int z)
+        private bool TrySetBlockOnServer(int x, int y, int z, int blockId, Quaternion rotation)
         {
             if (y < 0 || y >= WorldConsts.ChunkHeight)
             {
@@ -147,7 +148,7 @@ namespace Minecraft.Multiplayer
             }
 
             MyNetworkManager manager = NetworkManager.singleton as MyNetworkManager;
-            return manager != null && manager.TryRemoveBlockOnServer(x, y, z);
+            return manager != null && manager.TrySetBlockOnServer(x, y, z, blockId, rotation);
         }
     }
 }
