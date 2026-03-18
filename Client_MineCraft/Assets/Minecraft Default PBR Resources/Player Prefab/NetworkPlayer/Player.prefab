@@ -595,6 +595,7 @@ MonoBehaviour:
   syncInterval: 0
   m_PlayerEntity: {fileID: 3391343001962168064}
   m_PlayerCamera: {fileID: 4340878107097993579}
+  m_LocalOnlyBehaviours: []
 --- !u!1 &4070768186338065018
 GameObject:
   m_ObjectHideFlags: 0
@@ -798,7 +799,7 @@ Transform:
   m_GameObject: {fileID: 5126146512173889840}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 0, y: -1.25, z: 0}
+  m_LocalPosition: {x: 0, y: -1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:

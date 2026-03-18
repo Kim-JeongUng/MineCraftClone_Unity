@@ -262,7 +262,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &278857617
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1717,7 +1717,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1119864875
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2562,7 +2562,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 153b229d6c8243adb90541c555d4c78b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Mode: 2
+  m_Mode: 3
   m_AutoStart: 1
   m_NetworkAddress: 127.0.0.1
   m_KcpPort: 7777
@@ -2675,7 +2675,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1826666575
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2693,7 +2693,7 @@ RectTransform:
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: -10, y: -10}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 412, y: 671}
   m_Pivot: {x: 1, y: 1}
 --- !u!114 &1826666576
 MonoBehaviour:
