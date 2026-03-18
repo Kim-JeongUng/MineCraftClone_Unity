@@ -12,7 +12,7 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: JinYuhan
+  companyName: JeongUngKim
   productName: MinecraftClone
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
@@ -98,7 +98,7 @@ PlayerSettings:
   useFlipModelSwapchain: 1
   resizableWindow: 1
   useMacAppStoreValidation: 0
-  macAppStoreCategory: public.app-category.games
+  macAppStoreCategory: 
   gpuSkinning: 1
   xboxPIXTextureCapture: 0
   xboxEnableAvatar: 0
@@ -143,8 +143,9 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 2.1.7
+  bundleVersion: 1.1.0
   preloadedAssets:
+  - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -174,7 +175,7 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
-    Standalone: com.JinYuhan.MinecraftClone
+    Standalone: com.JeongUngKim.MinecraftClone
   buildNumber:
     Standalone: 0
     VisionOS: 0
@@ -994,11 +995,11 @@ PlayerSettings:
   apiCompatibilityLevel: 6
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: 9ed3c0cb-e1f2-4296-b7c2-e2b256e4f08f
+  cloudProjectId: 55b67aca-8f29-4736-be98-062c7b40b0cd
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: MinecraftClone
-  organizationId: wechat_os_qy02m6xyyadukzm1mjlkf7ogo
+  projectName: temp
+  organizationId: jungungkim
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}
