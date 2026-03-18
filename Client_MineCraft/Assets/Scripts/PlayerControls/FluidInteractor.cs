@@ -46,6 +46,12 @@ namespace Minecraft.PlayerControls
 
         public void UpdateState(IAABBEntity entity, Transform camera, out float velocityMultiplier)
         {
+            if (entity?.World?.RWAccessor == null || camera == null || m_FluidMap == null)
+            {
+                velocityMultiplier = 1f;
+                return;
+            }
+
             CheckHead(entity, camera);
             velocityMultiplier = CheckBody(entity);
         }

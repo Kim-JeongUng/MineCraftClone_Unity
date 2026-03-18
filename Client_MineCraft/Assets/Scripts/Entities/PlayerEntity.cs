@@ -66,6 +66,13 @@ namespace Minecraft.Entities
         {
             base.Start();
 
+            if (m_InputActions == null)
+            {
+                Debug.LogWarning($"[{nameof(PlayerEntity)}] Missing InputActionAsset on {name}.");
+                enabled = false;
+                return;
+            }
+
             m_InputActions.Enable();
             m_MoveAction = m_InputActions["Player/Move"];
             // m_RunAction = m_InputActions["Player/Run"];
@@ -76,14 +83,16 @@ namespace Minecraft.Entities
             m_CursorStateAction = m_InputActions["Player/Cursor State"];
 
             m_Camera = GetComponentInChildren<Camera>();
-            m_CameraTransform = m_Camera.GetComponent<Transform>();
+            m_CameraTransform = m_Camera != null ? m_Camera.transform : null;
             m_FluidInteractor = GetComponent<FluidInteractor>();
 
-            m_FirstPersonLook.Initialize(m_Transform, m_CameraTransform, true);
-            m_HeadBob.Initialize(m_CameraTransform);
-            m_JumpBob.Initialize();
-
-            m_OriginalCameraPosition = m_CameraTransform.localPosition;
+            if (m_CameraTransform != null)
+            {
+                m_FirstPersonLook.Initialize(transform, m_CameraTransform, true);
+                m_HeadBob.Initialize(m_CameraTransform);
+                m_JumpBob.Initialize();
+                m_OriginalCameraPosition = m_CameraTransform.localPosition;
+            }
             m_StepCycle = 0f;
             m_NextStep = m_StepCycle * 0.5f;
 
@@ -96,8 +105,11 @@ namespace Minecraft.Entities
             m_CursorStateAction.performed += SwitchCursorState;
 
             BlockInteraction interaction = GetComponent<BlockInteraction>();
-            interaction.Initialize(m_Camera, this);
-            interaction.enabled = true;
+            if (interaction != null)
+            {
+                interaction.Initialize(m_Camera, this);
+                interaction.enabled = m_Camera != null;
+            }
         }
 
         private void SwitchJumpMode(InputAction.CallbackContext context)
@@ -128,6 +140,12 @@ namespace Minecraft.Entities
 
         private void Update()
         {
+            InitializeEntityIfNot();
+            if (!Initialized || m_CameraTransform == null || m_FluidInteractor == null)
+            {
+                return;
+            }
+
             // Update 입력. 
             // 만약 FixedUpdate 입력, 
             // FixedUpdate 않 
@@ -150,6 +168,12 @@ namespace Minecraft.Entities
 
         protected override void FixedUpdate()
         {
+            InitializeEntityIfNot();
+            if (!Initialized || m_CameraTransform == null || m_FluidInteractor == null)
+            {
+                return;
+            }
+
             float speed = GetInput(out Vector2 input);
             m_FluidInteractor.UpdateState(this, m_CameraTransform, out float vMultiplier);
 

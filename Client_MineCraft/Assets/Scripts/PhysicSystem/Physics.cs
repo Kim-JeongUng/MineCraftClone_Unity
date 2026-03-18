@@ -32,6 +32,12 @@ namespace Minecraft.PhysicSystem
 
         public static bool RaycastBlock(Vector3 start, Vector3 end, IWorld world, Func<BlockData, bool> selectBlock, out BlockRaycastHit hit)
         {
+            if (world?.RWAccessor == null || selectBlock == null)
+            {
+                hit = default;
+                return false;
+            }
+
             int startX = Mathf.FloorToInt(start.x);
             int startY = Mathf.FloorToInt(start.y);
             int startZ = Mathf.FloorToInt(start.z);
@@ -164,6 +170,12 @@ namespace Minecraft.PhysicSystem
 
         public static bool CheckGroundedAABB(Vector3 position, AABB aabb, IWorld world, out BlockData groundBlock)
         {
+            if (world?.RWAccessor == null)
+            {
+                groundBlock = null;
+                return false;
+            }
+
             aabb += position;
             int y = Mathf.FloorToInt(aabb.Min.y - 0.5f);
 

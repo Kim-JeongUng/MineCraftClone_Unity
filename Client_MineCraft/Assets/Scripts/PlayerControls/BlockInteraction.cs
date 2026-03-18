@@ -66,13 +66,20 @@ namespace Minecraft.PlayerControls
                 return;
             }
 
-            if (!m_Camera)
+            if (!m_Camera || m_PlayerEntity == null)
             {
                 return;
             }
 
-            Ray ray = GetRay();
             IWorld world = m_PlayerEntity.World;
+            if (world?.RWAccessor == null || world.BlockDataTable == null || world.RenderingManager == null)
+            {
+                ShaderUtility.TargetedBlockPosition = Vector3.down;
+                SetDigProgress(0);
+                return;
+            }
+
+            Ray ray = GetRay();
             DigBlock(ray, world);
             PlaceBlock(ray, world);
         }
@@ -262,6 +269,12 @@ namespace Minecraft.PlayerControls
 
         private void SetDigProgress(float progress)
         {
+            if (m_PlayerEntity?.World?.RenderingManager == null)
+            {
+                ShaderUtility.DigProgress = -1;
+                return;
+            }
+
             ShaderUtility.DigProgress = (int)(progress * m_PlayerEntity.World.RenderingManager.DigProgressTextureCount) - 1;
         }
     }

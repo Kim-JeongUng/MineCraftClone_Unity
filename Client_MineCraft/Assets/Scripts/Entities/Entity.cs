@@ -114,17 +114,24 @@ namespace Minecraft.Entities
 
         public void InitializeEntityIfNot()
         {
-            if (!m_Initialized)
+            if (m_Initialized)
             {
-                m_World = Minecraft.World.Active;
-                m_Velocity = Vector3.zero;
-                m_AddedForce = Vector3.zero;
-                m_Transform = GetComponent<Transform>();
-                m_OnCollisions ??= new UnityEvent<CollisionFlags>();
-                OnInitialize();
-
-                m_Initialized = true;
+                return;
             }
+
+            m_World = Minecraft.World.Active;
+            if (m_World == null)
+            {
+                return;
+            }
+
+            m_Velocity = Vector3.zero;
+            m_AddedForce = Vector3.zero;
+            m_Transform = GetComponent<Transform>();
+            m_OnCollisions ??= new UnityEvent<CollisionFlags>();
+            OnInitialize();
+
+            m_Initialized = true;
         }
 
         protected virtual void OnInitialize() { }
@@ -137,6 +144,11 @@ namespace Minecraft.Entities
         private void Move(Vector3 velocity, float time)
         {
             m_Velocity = velocity;
+
+            if (!m_Initialized || m_Transform == null || m_World?.RWAccessor == null)
+            {
+                return;
+            }
 
             if (m_Velocity == Vector3.zero || time <= 0)
             {
@@ -164,6 +176,14 @@ namespace Minecraft.Entities
 
         public bool GetIsGrounded(out BlockData groundBlock)
         {
+            InitializeEntityIfNot();
+
+            if (!m_Initialized || m_Transform == null || m_World?.RWAccessor == null)
+            {
+                groundBlock = null;
+                return false;
+            }
+
             return Physics.CheckGroundedAABB(m_Transform.position, m_BoundingBox, m_World, out groundBlock);
         }
 

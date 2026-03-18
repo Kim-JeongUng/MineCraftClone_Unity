@@ -4,7 +4,6 @@ using Minecraft.Entities;
 using Mirror;
 using UnityEngine;
 
-
 namespace Minecraft.Multiplayer
 {
     public class NetworkPlayerAdapter : NetworkBehaviour
@@ -12,6 +11,9 @@ namespace Minecraft.Multiplayer
         [SerializeField] private PlayerEntity m_PlayerEntity;
         [SerializeField] private Camera m_PlayerCamera;
         [SerializeField] private Behaviour[] m_LocalOnlyBehaviours;
+
+        private const int RemotePlayerLayer = 9;
+        private const int LocalPlayerLayer = 10;
 
         private bool m_HasBoundLocalWorldReferences;
 
@@ -65,6 +67,8 @@ namespace Minecraft.Multiplayer
 
         private void ApplyLocalState(bool local)
         {
+            SetLayerRecursively(gameObject, local ? LocalPlayerLayer : RemotePlayerLayer);
+
             if (m_PlayerEntity != null)
             {
                 m_PlayerEntity.enabled = local;
@@ -90,6 +94,20 @@ namespace Minecraft.Multiplayer
                 {
                     listener.enabled = local;
                 }
+            }
+        }
+
+        private static void SetLayerRecursively(GameObject target, int layer)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            Transform[] children = target.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < children.Length; i++)
+            {
+                children[i].gameObject.layer = layer;
             }
         }
     }
