@@ -19,6 +19,27 @@ namespace Minecraft.Multiplayer
 
         private bool IsOwnedLocally => isLocalPlayer || isOwned;
 
+        public bool RequestRemoveBlock(Vector3Int position)
+        {
+            if (!GameModeContext.IsMultiplayer)
+            {
+                return false;
+            }
+
+            if (!isOwned && !isLocalPlayer)
+            {
+                return false;
+            }
+
+            if (isServer)
+            {
+                return TryRemoveBlockOnServer(position.x, position.y, position.z);
+            }
+
+            CmdRemoveBlock(position.x, position.y, position.z);
+            return true;
+        }
+
         public override void OnStartClient()
         {
             base.OnStartClient();
@@ -109,6 +130,24 @@ namespace Minecraft.Multiplayer
             {
                 children[i].gameObject.layer = layer;
             }
+        }
+
+        [Command]
+        private void CmdRemoveBlock(int x, int y, int z)
+        {
+            TryRemoveBlockOnServer(x, y, z);
+        }
+
+        [Server]
+        private bool TryRemoveBlockOnServer(int x, int y, int z)
+        {
+            if (y < 0 || y >= WorldConsts.ChunkHeight)
+            {
+                return false;
+            }
+
+            MyNetworkManager manager = NetworkManager.singleton as MyNetworkManager;
+            return manager != null && manager.TryRemoveBlockOnServer(x, y, z);
         }
     }
 }

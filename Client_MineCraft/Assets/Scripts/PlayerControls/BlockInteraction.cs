@@ -2,6 +2,7 @@ using System;
 using Minecraft.Configurations;
 using Minecraft.Entities;
 using Minecraft.Lua;
+using Minecraft.Multiplayer;
 using Minecraft.PhysicSystem;
 using Minecraft.Rendering;
 using UnityEngine;
@@ -24,6 +25,7 @@ namespace Minecraft.PlayerControls
         [NonSerialized] private IAABBEntity m_PlayerEntity;
         [NonSerialized] private Func<BlockData, bool> m_DestroyRaycastSelector;
         [NonSerialized] private Func<BlockData, bool> m_PlaceRaycastSelector;
+        [NonSerialized] private NetworkPlayerAdapter m_NetworkPlayerAdapter;
 
         [NonSerialized] private bool m_IsDigging;
         [NonSerialized] private float m_DiggingDamage;
@@ -43,6 +45,7 @@ namespace Minecraft.PlayerControls
 
         private void OnEnable()
         {
+            m_NetworkPlayerAdapter = GetComponentInParent<NetworkPlayerAdapter>();
             m_IsDigging = false;
             m_DiggingDamage = 0;
             m_FirstDigPos = Vector3Int.down;
@@ -155,7 +158,17 @@ namespace Minecraft.PlayerControls
                             {
                                 SetDigProgress(0);
                                 m_IsDigging = false;
-                                world.RWAccessor.SetBlock(hit.Position.x, hit.Position.y, hit.Position.z, world.BlockDataTable.GetBlock(0), Quaternion.identity, ModificationSource.PlayerAction);
+                                if (GameModeContext.IsMultiplayer)
+                                {
+                                    if (m_NetworkPlayerAdapter == null || !m_NetworkPlayerAdapter.RequestRemoveBlock(hit.Position))
+                                    {
+                                        Debug.LogWarning($"[MP] Failed to send block removal request for {hit.Position}.");
+                                    }
+                                }
+                                else
+                                {
+                                    world.RWAccessor.SetBlock(hit.Position.x, hit.Position.y, hit.Position.z, world.BlockDataTable.GetBlock(0), Quaternion.identity, ModificationSource.PlayerAction);
+                                }
 
                                 //block.PlayDigAudio(m_AudioSource);
 

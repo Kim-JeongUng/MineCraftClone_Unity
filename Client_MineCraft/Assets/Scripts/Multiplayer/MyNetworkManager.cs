@@ -24,6 +24,7 @@ namespace Minecraft.Multiplayer
         [SerializeField] private MultiplayerSpawnService m_SpawnService;
         [SerializeField] [Min(1f)] private float m_SpawnPreparationTimeoutSeconds = 10f;
 
+        private MultiplayerBlockRemovalSystem m_BlockRemovalSystem;
         private readonly Dictionary<int, Coroutine> m_PendingSpawnCoroutines = new Dictionary<int, Coroutine>();
         private int m_RuntimeMultiplayerSeed;
 
@@ -49,6 +50,8 @@ namespace Minecraft.Multiplayer
         public override void OnStartServer()
         {
             base.OnStartServer();
+            EnsureBlockRemovalSystemReference();
+            m_BlockRemovalSystem.StartServer();
             ApplyServerWorldSetting();
             EnsureSpawnServiceReference();
 
@@ -93,6 +96,8 @@ namespace Minecraft.Multiplayer
         public override void OnStartClient()
         {
             base.OnStartClient();
+            EnsureBlockRemovalSystemReference();
+            m_BlockRemovalSystem.StartClient();
             NetworkClient.RegisterHandler<WorldSettingsMessage>(OnWorldSettingsReceived, false);
             PreconfigureWorldForCurrentMode();
             Debug.Log($"[MP] Client start complete. preconfiguredSeed={GetAuthoritativeSeed()}");
@@ -134,10 +139,19 @@ namespace Minecraft.Multiplayer
             }
 
             m_PendingSpawnCoroutines.Clear();
+            EnsureBlockRemovalSystemReference();
+            m_BlockRemovalSystem.StopServer();
             EnsureSpawnServiceReference();
             m_SpawnService.ResetReservations();
             m_RuntimeMultiplayerSeed = 0;
             base.OnStopServer();
+        }
+
+        public override void OnStopClient()
+        {
+            EnsureBlockRemovalSystemReference();
+            m_BlockRemovalSystem.StopClient();
+            base.OnStopClient();
         }
 
         private IEnumerator AddPlayerWhenSpawnReady(NetworkConnectionToClient conn)
@@ -256,6 +270,12 @@ namespace Minecraft.Multiplayer
             }
         }
 
+        public bool TryRemoveBlockOnServer(int x, int y, int z)
+        {
+            EnsureBlockRemovalSystemReference();
+            return m_BlockRemovalSystem != null && m_BlockRemovalSystem.TryRemoveBlockOnServer(x, y, z);
+        }
+
         private void RemovePendingSpawnRecord(int connectionId)
         {
             if (connectionId >= 0)
@@ -273,6 +293,19 @@ namespace Minecraft.Multiplayer
 
             EnsureSpawnServiceReference();
             m_SpawnService.ReleaseSpawn(conn);
+        }
+
+        private void EnsureBlockRemovalSystemReference()
+        {
+            if (m_BlockRemovalSystem == null)
+            {
+                m_BlockRemovalSystem = GetComponent<MultiplayerBlockRemovalSystem>();
+
+                if (m_BlockRemovalSystem == null)
+                {
+                    m_BlockRemovalSystem = gameObject.AddComponent<MultiplayerBlockRemovalSystem>();
+                }
+            }
         }
 
         private void EnsureSpawnServiceReference()
