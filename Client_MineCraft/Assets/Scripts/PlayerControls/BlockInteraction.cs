@@ -254,12 +254,16 @@ namespace Minecraft.PlayerControls
 
         private bool DestroyRaycastSelect(BlockData block)
         {
-            return !block.HasFlag(BlockFlags.IgnoreDestroyBlockRaycast) && block.PhysicState == PhysicState.Solid;
+            return block != null
+                   && !block.HasFlag(BlockFlags.IgnoreDestroyBlockRaycast)
+                   && block.PhysicState == PhysicState.Solid;
         }
 
         private bool PlaceRaycastSelect(BlockData block)
         {
-            return !block.HasFlag(BlockFlags.IgnorePlaceBlockRaycast) && block.PhysicState == PhysicState.Solid;
+            return block != null
+                   && !block.HasFlag(BlockFlags.IgnorePlaceBlockRaycast)
+                   && block.PhysicState == PhysicState.Solid;
         }
 
         private Ray GetRay()

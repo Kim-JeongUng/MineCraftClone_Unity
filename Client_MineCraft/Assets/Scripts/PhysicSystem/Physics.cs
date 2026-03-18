@@ -144,7 +144,7 @@ namespace Minecraft.PhysicSystem
                 BlockData block = world.RWAccessor.GetBlock(startX, startY, startZ);
                 // AABB? boundingBox = block.GetBoundingBox(pos, world);
 
-                if (!selectBlock(block))
+                if (block == null || !selectBlock(block))
                 {
                     continue;
                 }
@@ -191,6 +191,11 @@ namespace Minecraft.PhysicSystem
                     for (int z = startZ; z <= endZ; z++)
                     {
                         groundBlock = world.RWAccessor.GetBlock(x, y, z);
+                        if (groundBlock == null)
+                        {
+                            continue;
+                        }
+
                         AABB? blockAABB = groundBlock.GetBoundingBox(x, y, z, world, true);
 
                         if (blockAABB != null && aabb.Intersects(blockAABB.Value))

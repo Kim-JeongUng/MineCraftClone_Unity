@@ -69,6 +69,10 @@ namespace Minecraft.PlayerControls
             int x = Mathf.FloorToInt(pos.x);
             int z = Mathf.FloorToInt(pos.z);
             BlockData block = entity.World.RWAccessor.GetBlock(x, y, z);
+            if (block == null)
+            {
+                return;
+            }
 
             if (block.InternalName != m_BlockAtHead && m_FluidMap.TryGetValue(block.InternalName, out FluidInfo info))
             {
@@ -92,6 +96,10 @@ namespace Minecraft.PlayerControls
             for (int y = minY; y < maxY; y++)
             {
                 BlockData block = entity.World.RWAccessor.GetBlock(center.x, y, center.z);
+                if (block == null)
+                {
+                    continue;
+                }
 
                 // m_Fluids 요소블록 
                 for (int i = 0; i < m_Fluids.Length; i++)
