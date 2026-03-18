@@ -17,13 +17,20 @@ namespace Minecraft.UI
         [SerializeField] private Text m_LoadingText;
         [SerializeField] private Text m_CurrentHandBlockText;
         [SerializeField] private InputField m_HandBlockInput;
-        [SerializeField] [Range(0.01f, 1f)] private float m_ProgressLerpSpeed = 0.2f;
+        [SerializeField] [Min(0.1f)] private float m_MinChunkLoadingSeconds = 1.5f;
+        [SerializeField] [Min(0.05f)] private float m_CloseDelayAfterFullProgress = 2.5f;
+        [SerializeField] [Min(0.1f)] private float m_DefaultProgressSpeed = 0.6f;
+        [SerializeField] [Min(0.1f)] private float m_CompletionProgressSpeed = 1.5f;
 
         public Text CurrentHandBlockText => m_CurrentHandBlockText;
         public InputField HandBlockInput => m_HandBlockInput;
 
         private float m_CurrentProgress;
+        private float m_ChunkLoadingElapsed;
+        private float m_CompletionElapsed;
         private bool m_IsReady;
+        private bool m_IsCompleting;
+        private bool m_HasStartedChunkLoading;
 
         private void Awake()
         {
@@ -39,8 +46,15 @@ namespace Minecraft.UI
                 return;
             }
 
-            float targetProgress = 0.05f;
+            if (m_IsCompleting)
+            {
+                UpdateCompletionState();
+                return;
+            }
+
+            float targetProgress = 0.1f;
             string message = "네트워크 연결 대기 중...";
+            float progressSpeed = m_DefaultProgressSpeed;
 
             if (IsNetworkReady())
             {
@@ -50,22 +64,64 @@ namespace Minecraft.UI
                 World world = World.Active as World;
                 if (world != null && world.Initialized)
                 {
-                    targetProgress = 0.75f;
+                    if (!m_HasStartedChunkLoading)
+                    {
+                        m_HasStartedChunkLoading = true;
+                        m_ChunkLoadingElapsed = 0f;
+                    }
+
+                    m_ChunkLoadingElapsed += Time.unscaledDeltaTime;
+                    float chunkPhaseProgress = Mathf.Clamp01(m_ChunkLoadingElapsed / m_MinChunkLoadingSeconds);
+                    targetProgress = Mathf.Lerp(0.4f, 0.9f, chunkPhaseProgress);
                     message = "지형 생성 중...";
 
-                    if (IsGroundChunkReady(world))
+                    if (IsGroundChunkReady(world) && m_ChunkLoadingElapsed >= m_MinChunkLoadingSeconds)
                     {
-                        SetReadyState(true);
-                        ApplyProgressImmediate(1f);
-                        SetLoadingMessage("로딩 완료");
+                        BeginCompletion();
+                        UpdateCompletionState();
                         return;
                     }
                 }
             }
+            else
+            {
+                m_HasStartedChunkLoading = false;
+                m_ChunkLoadingElapsed = 0f;
+            }
 
-            m_CurrentProgress = Mathf.MoveTowards(m_CurrentProgress, targetProgress, Time.unscaledDeltaTime * m_ProgressLerpSpeed);
+            m_CurrentProgress = Mathf.MoveTowards(m_CurrentProgress, targetProgress, Time.unscaledDeltaTime * progressSpeed);
             ApplyProgressImmediate(m_CurrentProgress);
             SetLoadingMessage(message);
+        }
+
+        private void BeginCompletion()
+        {
+            if (m_IsCompleting)
+            {
+                return;
+            }
+
+            m_IsCompleting = true;
+            m_CompletionElapsed = 0f;
+            SetLoadingMessage("로딩 완료");
+        }
+
+        private void UpdateCompletionState()
+        {
+            m_CurrentProgress = Mathf.MoveTowards(m_CurrentProgress, 1f, Time.unscaledDeltaTime * m_CompletionProgressSpeed);
+            ApplyProgressImmediate(m_CurrentProgress);
+            SetLoadingMessage("로딩 완료");
+
+            if (m_CurrentProgress < 1f)
+            {
+                return;
+            }
+
+            m_CompletionElapsed += Time.unscaledDeltaTime;
+            if (m_CompletionElapsed >= m_CloseDelayAfterFullProgress)
+            {
+                SetReadyState(true);
+            }
         }
 
         private bool IsNetworkReady()
