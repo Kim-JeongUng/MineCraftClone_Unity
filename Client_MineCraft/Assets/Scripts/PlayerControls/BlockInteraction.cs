@@ -23,6 +23,7 @@ namespace Minecraft.PlayerControls
 
         [NonSerialized] private Camera m_Camera;
         [NonSerialized] private IAABBEntity m_PlayerEntity;
+        [NonSerialized] private PlayerEntity m_PlayerAnimationEntity;
         [NonSerialized] private Func<BlockData, bool> m_DestroyRaycastSelector;
         [NonSerialized] private Func<BlockData, bool> m_PlaceRaycastSelector;
         [NonSerialized] private NetworkPlayerAdapter m_NetworkPlayerAdapter;
@@ -46,6 +47,7 @@ namespace Minecraft.PlayerControls
         {
             m_Camera = camera;
             m_PlayerEntity = playerEntity;
+            m_PlayerAnimationEntity = playerEntity as PlayerEntity;
             m_DestroyRaycastSelector = DestroyRaycastSelect;
             m_PlaceRaycastSelector = PlaceRaycastSelect;
         }
@@ -65,6 +67,7 @@ namespace Minecraft.PlayerControls
 
         private void OnDisable()
         {
+            StopDigAnimationLoop();
             SetDigProgress(0);
             ShaderUtility.TargetedBlockPosition = Vector3.down;
         }
@@ -85,6 +88,7 @@ namespace Minecraft.PlayerControls
             if (world?.RWAccessor == null || world.BlockDataTable == null || world.RenderingManager == null)
             {
                 ShaderUtility.TargetedBlockPosition = Vector3.down;
+                StopDigAnimationLoop();
                 SetDigProgress(0);
                 return;
             }
@@ -165,6 +169,7 @@ namespace Minecraft.PlayerControls
                             {
                                 SetDigProgress(0);
                                 m_IsDigging = false;
+                                StopDigAnimationLoop();
                                 BlockData airBlock = world.BlockDataTable.GetBlock(0);
                                 if (GameModeContext.IsMultiplayer)
                                 {
@@ -192,15 +197,20 @@ namespace Minecraft.PlayerControls
                         {
                             SetDigProgress(0);
                             m_IsDigging = false;
+                            StopDigAnimationLoop();
                         }
                     }
                     else
                     {
-                        BlockData block = world.RWAccessor.GetBlock(hit.Position.x, hit.Position.y, hit.Position.z);
                         m_IsDigging = true;
                         m_DiggingDamage = 0;
                         m_FirstDigPos = hit.Position;
+                        StartDigAnimationLoop();
                     }
+                }
+                else
+                {
+                    StopDigAnimationLoop();
                 }
 
                 if (Input.GetMouseButtonDown(0))
@@ -213,6 +223,7 @@ namespace Minecraft.PlayerControls
                 {
                     SetDigProgress(0);
                     m_IsDigging = false;
+                    StopDigAnimationLoop();
 
                     BlockData block = world.RWAccessor.GetBlock(hit.Position.x, hit.Position.y, hit.Position.z);
 
@@ -228,6 +239,7 @@ namespace Minecraft.PlayerControls
             else
             {
                 // 선택된 블록 없음
+                StopDigAnimationLoop();
                 ShaderUtility.TargetedBlockPosition = Vector3.down;
             }
         }
@@ -273,13 +285,42 @@ namespace Minecraft.PlayerControls
                             {
                                 Debug.LogWarning($"[MP] Failed to send block placement request for {pos} ({block.InternalName}).");
                             }
+                            else
+                            {
+                                PlayDigAnimationOnce();
+                            }
                         }
                         else
                         {
                             world.RWAccessor.SetBlock(pos.x, pos.y, pos.z, block, rotation, ModificationSource.PlayerAction);
+                            PlayDigAnimationOnce();
                         }
                     }
                 }
+            }
+        }
+
+        private void StartDigAnimationLoop()
+        {
+            if (m_PlayerAnimationEntity != null)
+            {
+                m_PlayerAnimationEntity.StartDigAnimationLoop();
+            }
+        }
+
+        private void StopDigAnimationLoop()
+        {
+            if (m_PlayerAnimationEntity != null)
+            {
+                m_PlayerAnimationEntity.StopDigAnimationLoop();
+            }
+        }
+
+        private void PlayDigAnimationOnce()
+        {
+            if (m_PlayerAnimationEntity != null)
+            {
+                m_PlayerAnimationEntity.PlayDigAnimationOnce();
             }
         }
 
