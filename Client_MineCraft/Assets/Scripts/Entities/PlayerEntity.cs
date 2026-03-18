@@ -1,5 +1,6 @@
-﻿using Minecraft.Configurations;
+using Minecraft.Configurations;
 using Minecraft.PlayerControls;
+using Minecraft.Multiplayer;
 using System;
 using UnityEngine;
 using UnityEngine.Events;
@@ -35,6 +36,11 @@ namespace Minecraft.Entities
         [SerializeField] private LerpControlledBob m_JumpBob;
 
         [Space]
+        [Header("Animation")]
+        [SerializeField] private Animator m_CharacterAnimator;
+        [SerializeField] [Min(0.01f)] private float m_DigAnimationRepeatInterval = 0.45f;
+
+        [Space]
         [Header("Events")]
         [SerializeField] private UnityEvent<BlockData> m_OnStepOnBlock;
 
@@ -60,6 +66,14 @@ namespace Minecraft.Entities
         private float m_NextStep;
 
         private float m_LastTimePressW;
+        private bool m_IsDigAnimationLoopActive;
+        private float m_NextDigAnimationTime;
+        private float m_LastMoveAnimationSpeed = -1f;
+
+        private static readonly int s_MoveSpeedHash = Animator.StringToHash("Move Speed");
+        private static readonly int s_DigHash = Animator.StringToHash("Dig");
+
+        private NetworkPlayerAdapter m_NetworkPlayerAdapter;
 
 
         protected override void Start()
@@ -85,6 +99,11 @@ namespace Minecraft.Entities
             m_Camera = GetComponentInChildren<Camera>();
             m_CameraTransform = m_Camera != null ? m_Camera.transform : null;
             m_FluidInteractor = GetComponent<FluidInteractor>();
+            m_NetworkPlayerAdapter = GetComponent<NetworkPlayerAdapter>();
+            if (m_CharacterAnimator == null)
+            {
+                m_CharacterAnimator = GetComponentInChildren<Animator>(true);
+            }
 
             if (m_CameraTransform != null)
             {
@@ -97,6 +116,8 @@ namespace Minecraft.Entities
             m_NextStep = m_StepCycle * 0.5f;
 
             m_LastTimePressW = 0f;
+            m_IsDigAnimationLoopActive = false;
+            m_NextDigAnimationTime = 0f;
 
             // m_RunAction.performed += SwitchRunMode;
             m_JumpAction.performed += SwitchJumpMode;
@@ -164,6 +185,11 @@ namespace Minecraft.Entities
             }
 
             m_PreviouslyGrounded = isGrounded;
+
+            if (m_IsDigAnimationLoopActive && Time.time >= m_NextDigAnimationTime)
+            {
+                TriggerDigAnimation(true);
+            }
         }
 
         protected override void FixedUpdate()
@@ -208,8 +234,96 @@ namespace Minecraft.Entities
                 velocity.y = 0;            }
 
             AddInstantForce((velocity - Velocity) * Mass / Time.fixedDeltaTime);
+            UpdateMoveAnimation(velocity);
 
             base.FixedUpdate(); // move
+        }
+
+        public void StartDigAnimationLoop()
+        {
+            if (m_IsDigAnimationLoopActive)
+            {
+                return;
+            }
+
+            m_IsDigAnimationLoopActive = true;
+            TriggerDigAnimation(true);
+        }
+
+        public void StopDigAnimationLoop()
+        {
+            m_IsDigAnimationLoopActive = false;
+        }
+
+        public void PlayDigAnimationOnce()
+        {
+            TriggerDigAnimation(true);
+        }
+
+        public void ApplyRemoteMoveAnimation(float moveSpeed)
+        {
+            SetMoveAnimation(moveSpeed, false);
+        }
+
+        public void ApplyRemoteDigAnimationLoop(bool active)
+        {
+            if (active)
+            {
+                m_IsDigAnimationLoopActive = true;
+                TriggerDigAnimation(false);
+                return;
+            }
+
+            m_IsDigAnimationLoopActive = false;
+        }
+
+        public void ApplyRemoteDigAnimationOnce()
+        {
+            TriggerDigAnimation(false);
+        }
+
+        private void UpdateMoveAnimation(Vector3 velocity)
+        {
+            float horizontalSpeed = new Vector2(velocity.x, velocity.z).magnitude;
+            float referenceSpeed = Mathf.Max(0.01f, Mathf.Max(WalkSpeed, RunSpeed));
+            float moveSpeed = Mathf.Clamp01(horizontalSpeed / referenceSpeed);
+            SetMoveAnimation(moveSpeed, true);
+        }
+
+        private void SetMoveAnimation(float moveSpeed, bool synchronize)
+        {
+            if (m_CharacterAnimator != null)
+            {
+                m_CharacterAnimator.SetFloat(s_MoveSpeedHash, moveSpeed);
+            }
+
+            if (Mathf.Abs(m_LastMoveAnimationSpeed - moveSpeed) <= 0.01f)
+            {
+                return;
+            }
+
+            m_LastMoveAnimationSpeed = moveSpeed;
+
+            if (synchronize && m_NetworkPlayerAdapter != null)
+            {
+                m_NetworkPlayerAdapter.SyncMoveAnimation(moveSpeed);
+            }
+        }
+
+        private void TriggerDigAnimation(bool synchronize)
+        {
+            if (m_CharacterAnimator != null)
+            {
+                m_CharacterAnimator.ResetTrigger(s_DigHash);
+                m_CharacterAnimator.SetTrigger(s_DigHash);
+            }
+
+            m_NextDigAnimationTime = Time.time + m_DigAnimationRepeatInterval;
+
+            if (synchronize && m_NetworkPlayerAdapter != null)
+            {
+                m_NetworkPlayerAdapter.SyncDigAnimationPulse();
+            }
         }
 
         private void ProgressStepCycle(Vector2 input, float speed, bool isGrounded, BlockData blockUnderFeet)
