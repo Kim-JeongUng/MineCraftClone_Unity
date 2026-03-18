@@ -15,7 +15,12 @@ namespace Minecraft.UI
         [Header("Loading UI")]
         [SerializeField] private Image m_ProgressBar;
         [SerializeField] private Text m_LoadingText;
+        [SerializeField] private Text m_CurrentHandBlockText;
+        [SerializeField] private InputField m_HandBlockInput;
         [SerializeField] [Range(0.01f, 1f)] private float m_ProgressLerpSpeed = 0.2f;
+
+        public Text CurrentHandBlockText => m_CurrentHandBlockText;
+        public InputField HandBlockInput => m_HandBlockInput;
 
         private float m_CurrentProgress;
         private bool m_IsReady;

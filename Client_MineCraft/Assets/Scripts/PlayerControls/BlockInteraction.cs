@@ -35,6 +35,13 @@ namespace Minecraft.PlayerControls
 
         [NonSerialized] private GameObject m_HandBlockInputGO;
 
+        public void AssignHandBlockUI(Text currentHandBlockText, InputField handBlockInput)
+        {
+            m_CurrentHandBlockText = currentHandBlockText;
+            m_HandBlockInput = handBlockInput;
+            m_HandBlockInputGO = m_HandBlockInput != null ? m_HandBlockInput.gameObject : null;
+        }
+
         public void Initialize(Camera camera, IAABBEntity playerEntity)
         {
             m_Camera = camera;

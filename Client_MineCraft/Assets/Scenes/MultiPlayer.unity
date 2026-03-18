@@ -1270,6 +1270,8 @@ MonoBehaviour:
   m_LoadingPageRoot: {fileID: 692754536}
   m_ProgressBar: {fileID: 259272870}
   m_LoadingText: {fileID: 406097692}
+  m_CurrentHandBlockText: {fileID: 278857618}
+  m_HandBlockInput: {fileID: 320083732}
   m_ProgressLerpSpeed: 0.2
 --- !u!224 &877866897
 RectTransform:
