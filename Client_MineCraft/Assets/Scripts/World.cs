@@ -6,6 +6,7 @@ using Minecraft.Audio;
 using Minecraft.Configurations;
 using Minecraft.Entities;
 using Minecraft.Lua;
+using Minecraft.Multiplayer;
 using Minecraft.Rendering;
 using Minecraft.ScriptableWorldGeneration;
 using UnityEngine;
@@ -59,6 +60,12 @@ namespace Minecraft
 
         public Transform PlayerTransform => m_Player;
 
+        public Vector3 DefaultSpawnPosition => m_Player != null ? m_Player.position : transform.position;
+
+        public Quaternion DefaultSpawnRotation => m_Player != null ? m_Player.rotation : transform.rotation;
+
+        public int ConfiguredSeed => m_Seed;
+
         public Camera MainCamera => m_MainCamera;
 
         public AudioManager AudioManager => m_AudioManager;
@@ -107,11 +114,24 @@ namespace Minecraft
                 throw new InvalidOperationException("There is already a world!");
             }
 
-            // temp
-            ActiveSetting = new WorldSetting
+            while (GameModeContext.IsClient && !GameModeContext.IsServer && !GameModeContext.HasAuthoritativeWorldSettings)
             {
-                Seed = m_Seed == 0 ? (Process.GetCurrentProcess().Id + DateTime.Now.GetHashCode()) : m_Seed
-            };
+                yield return null;
+            }
+
+            int resolvedSeed = ResolveInitialSeed();
+
+            if (ActiveSetting == null)
+            {
+                ActiveSetting = new WorldSetting
+                {
+                    Seed = resolvedSeed
+                };
+            }
+            else if (ActiveSetting.Seed == 0)
+            {
+                ActiveSetting.Seed = resolvedSeed;
+            }
 
             if (ActiveSetting == null)
             {
@@ -183,6 +203,16 @@ namespace Minecraft
         protected virtual IEnumerator OnInitialize()
         {
             yield return null;
+        }
+
+        private int ResolveInitialSeed()
+        {
+            if (GameModeContext.IsMultiplayer && GameModeContext.HasAuthoritativeWorldSettings && GameModeContext.AuthoritativeWorldSeed != 0)
+            {
+                return GameModeContext.AuthoritativeWorldSeed;
+            }
+
+            return m_Seed == 0 ? (Process.GetCurrentProcess().Id + DateTime.Now.GetHashCode()) : m_Seed;
         }
 
         protected virtual void OnUpdate() { }

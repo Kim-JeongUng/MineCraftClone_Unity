@@ -18,9 +18,30 @@ namespace Minecraft.Multiplayer
 
         public static bool IsClient => Mode == RuntimeGameMode.Client || Mode == RuntimeGameMode.Host;
 
+        public static bool HasAuthoritativeWorldSettings { get; private set; }
+
+        public static int AuthoritativeWorldSeed { get; private set; }
+
         public static void SetMode(RuntimeGameMode mode)
         {
             Mode = mode;
+            HasAuthoritativeWorldSettings = mode == RuntimeGameMode.SinglePlayer;
+            AuthoritativeWorldSeed = 0;
+        }
+
+        public static void MarkWorldSettingsPending()
+        {
+            if (IsClient && !IsServer)
+            {
+                HasAuthoritativeWorldSettings = false;
+                AuthoritativeWorldSeed = 0;
+            }
+        }
+
+        public static void SetAuthoritativeWorldSeed(int seed)
+        {
+            AuthoritativeWorldSeed = seed;
+            HasAuthoritativeWorldSettings = true;
         }
     }
 }

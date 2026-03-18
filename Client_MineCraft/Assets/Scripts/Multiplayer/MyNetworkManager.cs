@@ -1,17 +1,53 @@
+using System.Collections;
+using System.Collections.Generic;
 using Minecraft;
 using Mirror;
 using kcp2k;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Minecraft.Multiplayer
 {
     public class MyNetworkManager : NetworkManager
     {
+        private struct WorldSettingsMessage : NetworkMessage
+        {
+            public int Seed;
+        }
+
+        [Header("World Sync")]
+        [SerializeField] private int m_MultiplayerSeed = 13579;
+
+        [Header("Spawning")]
         [SerializeField] private Transform m_FallbackSpawnPoint;
+        [SerializeField] private MultiplayerSpawnService m_SpawnService;
+        [SerializeField] [Min(1f)] private float m_SpawnPreparationTimeoutSeconds = 10f;
+
+        private readonly Dictionary<int, Coroutine> m_PendingSpawnCoroutines = new Dictionary<int, Coroutine>();
+
+        public void PreconfigureWorldForCurrentMode()
+        {
+            if (!GameModeContext.IsMultiplayer)
+            {
+                return;
+            }
+
+            if (GameModeContext.IsClient && !GameModeContext.IsServer)
+            {
+                GameModeContext.MarkWorldSettingsPending();
+                Debug.Log($"[MP] Client waiting for authoritative world settings. mode={GameModeContext.Mode}");
+                return;
+            }
+
+            ApplyLocalWorldSetting(GetAuthoritativeSeed());
+            Debug.Log($"[MP] Preconfigured local multiplayer world. mode={GameModeContext.Mode}, seed={GetAuthoritativeSeed()}");
+        }
 
         public override void OnStartServer()
         {
             base.OnStartServer();
+            ApplyServerWorldSetting();
+            EnsureSpawnServiceReference();
 
             ushort port = 0;
             if (Transport.active is KcpTransport kcp)
@@ -19,13 +55,14 @@ namespace Minecraft.Multiplayer
                 port = kcp.Port;
             }
 
-            Debug.Log($"[MP] Server start complete. port={port}");
+            Debug.Log($"[MP] Server start complete. port={port}, seed={World.ActiveSetting?.Seed}, mode={GameModeContext.Mode}");
         }
 
         public override void OnServerConnect(NetworkConnectionToClient conn)
         {
             base.OnServerConnect(conn);
-            Debug.Log($"[MP] Server accepted client. connId={conn.connectionId}, connected={NetworkServer.connections.Count}");
+            conn.Send(new WorldSettingsMessage { Seed = GetAuthoritativeSeed() });
+            Debug.Log($"[MP] Server accepted client. connId={conn.connectionId}, connected={NetworkServer.connections.Count}, sharedSeed={GetAuthoritativeSeed()}");
         }
 
         public override void OnServerAddPlayer(NetworkConnectionToClient conn)
@@ -36,22 +73,32 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            Transform spawn = GetSpawnPoint();
-            GameObject player = Instantiate(playerPrefab, spawn.position, spawn.rotation);
-            NetworkServer.AddPlayerForConnection(conn, player);
-            Debug.Log($"[MP] AddPlayer complete. connId={conn.connectionId}, player={player.name}, spawn={spawn.position}");
+            EnsureSpawnServiceReference();
+            CleanupPendingSpawn(conn.connectionId);
+            m_PendingSpawnCoroutines[conn.connectionId] = StartCoroutine(AddPlayerWhenSpawnReady(conn));
         }
 
         public override void OnServerDisconnect(NetworkConnectionToClient conn)
         {
+            EnsureSpawnServiceReference();
+            CleanupPendingSpawn(conn.connectionId);
+            m_SpawnService.ReleaseSpawn(conn);
             Debug.Log($"[MP] Server disconnect. connId={conn.connectionId}, connected(before)={NetworkServer.connections.Count}");
             base.OnServerDisconnect(conn);
+        }
+
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+            NetworkClient.RegisterHandler<WorldSettingsMessage>(OnWorldSettingsReceived, false);
+            PreconfigureWorldForCurrentMode();
+            Debug.Log($"[MP] Client start complete. preconfiguredSeed={GetAuthoritativeSeed()}");
         }
 
         public override void OnClientConnect()
         {
             base.OnClientConnect();
-            Debug.Log("[MP] Client connected successfully.");
+            Debug.Log($"[MP] Client connected successfully. activeSeed={World.ActiveSetting?.Seed}");
         }
 
         public override void OnClientDisconnect()
@@ -60,19 +107,199 @@ namespace Minecraft.Multiplayer
             base.OnClientDisconnect();
         }
 
-        private Transform GetSpawnPoint()
+        public override void OnServerError(NetworkConnectionToClient conn, TransportError error, string reason)
         {
-            if (m_FallbackSpawnPoint != null)
+            EnsureSpawnServiceReference();
+            if (conn != null)
             {
-                return m_FallbackSpawnPoint;
+                CleanupPendingSpawn(conn.connectionId);
+                m_SpawnService.ReleaseSpawn(conn);
             }
 
-            if (World.Active is World world && world.PlayerTransform != null)
+            Debug.LogWarning($"[MP] Server error. connId={conn?.connectionId}, error={error}, reason={reason}");
+            base.OnServerError(conn, error, reason);
+        }
+
+        public override void OnStopServer()
+        {
+            foreach (var pair in m_PendingSpawnCoroutines)
             {
-                return world.PlayerTransform;
+                if (pair.Value != null)
+                {
+                    StopCoroutine(pair.Value);
+                }
             }
 
-            return transform;
+            m_PendingSpawnCoroutines.Clear();
+            EnsureSpawnServiceReference();
+            m_SpawnService.ResetReservations();
+            base.OnStopServer();
+        }
+
+        private IEnumerator AddPlayerWhenSpawnReady(NetworkConnectionToClient conn)
+        {
+            int connectionId = conn != null ? conn.connectionId : -1;
+            World world = null;
+            float deadline = Time.unscaledTime + m_SpawnPreparationTimeoutSeconds;
+
+            while (Time.unscaledTime < deadline)
+            {
+                if (conn == null || !NetworkServer.connections.ContainsKey(connectionId) || conn.identity != null)
+                {
+                    RemovePendingSpawnRecord(connectionId);
+                    ReleaseSpawnReservation(conn);
+                    yield break;
+                }
+
+                world = World.Active as World;
+                if (world != null && world.Initialized)
+                {
+                    break;
+                }
+
+                yield return null;
+            }
+
+            if (world == null || !world.Initialized)
+            {
+                Debug.LogWarning($"[MP] AddPlayer aborted because world was not ready in time. connId={connectionId}");
+                RemovePendingSpawnRecord(connectionId);
+                ReleaseSpawnReservation(conn);
+                yield break;
+            }
+
+            MultiplayerSpawnService.SpawnReservation reservation = m_SpawnService.ReserveSpawn(conn, world);
+            while (Time.unscaledTime < deadline)
+            {
+                if (conn == null || !NetworkServer.connections.ContainsKey(connectionId) || conn.identity != null)
+                {
+                    RemovePendingSpawnRecord(connectionId);
+                    ReleaseSpawnReservation(conn);
+                    yield break;
+                }
+
+                if (m_SpawnService.IsSpawnAreaReady(world, reservation.Position))
+                {
+                    break;
+                }
+
+                yield return null;
+            }
+
+            if (!m_SpawnService.IsSpawnAreaReady(world, reservation.Position))
+            {
+                Debug.LogWarning($"[MP] AddPlayer aborted because spawn chunks were not ready in time. connId={connectionId}, reserved={reservation.Position}");
+                RemovePendingSpawnRecord(connectionId);
+                ReleaseSpawnReservation(conn);
+                yield break;
+            }
+
+            if (playerPrefab == null)
+            {
+                Debug.LogWarning($"[MP] AddPlayer aborted because playerPrefab is missing. connId={connectionId}");
+                RemovePendingSpawnRecord(connectionId);
+                ReleaseSpawnReservation(conn);
+                yield break;
+            }
+
+            Vector3 spawnPosition = m_SpawnService.FinalizeSpawn(conn, world);
+            Quaternion spawnRotation = m_SpawnService.SpawnRotation;
+            GameObject player = Instantiate(playerPrefab, spawnPosition, spawnRotation);
+            bool added = NetworkServer.AddPlayerForConnection(conn, player);
+
+            RemovePendingSpawnRecord(connectionId);
+
+            if (!added)
+            {
+                Debug.LogWarning($"[MP] AddPlayer failed after spawn preparation. connId={connectionId}, reserved={reservation.Position}, final={spawnPosition}");
+                Destroy(player);
+                ReleaseSpawnReservation(conn);
+                yield break;
+            }
+
+            Vector3 anchor = m_SpawnService.AnchorPosition;
+            Vector3 delta = spawnPosition - anchor;
+            Debug.Log($"[MP] AddPlayer complete. connId={connectionId}, player={player.name}, seed={GetAuthoritativeSeed()}, baseSpawn={m_SpawnService.BaseSpawnPosition}, anchor={anchor}, finalSpawn={spawnPosition}, deltaFromAnchor={delta}, mode={GameModeContext.Mode}");
+        }
+
+        private void CleanupPendingSpawn(int connectionId)
+        {
+            if (m_PendingSpawnCoroutines.TryGetValue(connectionId, out Coroutine routine))
+            {
+                if (routine != null)
+                {
+                    StopCoroutine(routine);
+                }
+
+                m_PendingSpawnCoroutines.Remove(connectionId);
+            }
+        }
+
+        private void RemovePendingSpawnRecord(int connectionId)
+        {
+            if (connectionId >= 0)
+            {
+                m_PendingSpawnCoroutines.Remove(connectionId);
+            }
+        }
+
+        private void ReleaseSpawnReservation(NetworkConnectionToClient conn)
+        {
+            if (conn == null)
+            {
+                return;
+            }
+
+            EnsureSpawnServiceReference();
+            m_SpawnService.ReleaseSpawn(conn);
+        }
+
+        private void EnsureSpawnServiceReference()
+        {
+            if (m_SpawnService == null)
+            {
+                m_SpawnService = GetComponent<MultiplayerSpawnService>();
+            }
+
+            if (m_SpawnService == null)
+            {
+                m_SpawnService = gameObject.AddComponent<MultiplayerSpawnService>();
+            }
+
+            m_SpawnService.ConfigureFallbackSpawnPoint(m_FallbackSpawnPoint);
+        }
+
+        private void ApplyServerWorldSetting()
+        {
+            ApplyLocalWorldSetting(GetAuthoritativeSeed());
+            Debug.Log($"[MP] Server authoritative world seed prepared. seed={GetAuthoritativeSeed()}, scene={SceneManager.GetActiveScene().name}");
+        }
+
+        private void ApplyLocalWorldSetting(int seed)
+        {
+            if (!GameModeContext.IsMultiplayer)
+            {
+                return;
+            }
+
+            if (World.ActiveSetting == null)
+            {
+                World.ActiveSetting = new WorldSetting();
+            }
+
+            World.ActiveSetting.Seed = seed;
+            GameModeContext.SetAuthoritativeWorldSeed(seed);
+        }
+
+        private int GetAuthoritativeSeed()
+        {
+            return m_MultiplayerSeed != 0 ? m_MultiplayerSeed : 13579;
+        }
+
+        private void OnWorldSettingsReceived(WorldSettingsMessage message)
+        {
+            ApplyLocalWorldSetting(message.Seed);
+            Debug.Log($"[MP] Client received authoritative world settings. seed={message.Seed}");
         }
     }
 }
