@@ -50,7 +50,7 @@ namespace Minecraft.PlayerControls
             m_ClickTime = 0;
             SetDigProgress(0);
 
-            m_HandBlockInputGO = m_HandBlockInput.gameObject;
+            m_HandBlockInputGO = m_HandBlockInput != null ? m_HandBlockInput.gameObject : null;
         }
 
         private void OnDisable()
@@ -79,6 +79,11 @@ namespace Minecraft.PlayerControls
 
         private bool ChangeHandBlock()
         {
+            if (m_HandBlockInput == null || m_HandBlockInputGO == null)
+            {
+                return false;
+            }
+
             if (!Input.GetKeyDown(KeyCode.Return))
             {
                 return m_HandBlockInputGO.activeInHierarchy;
@@ -88,22 +93,32 @@ namespace Minecraft.PlayerControls
             {
                 // onSubmit은 사용하지 않음
 
-                m_CurrentHandBlockText.text = m_HandBlockInput.text;
+                if (m_CurrentHandBlockText != null)
+                {
+                    m_CurrentHandBlockText.text = m_HandBlockInput.text;
+                }
+
                 m_HandBlockInput.DeactivateInputField();
                 m_HandBlockInputGO.SetActive(false);
 
-                for (int i = 0; i < m_DisableWhenEditHandBlock.Length; i++)
+                for (int i = 0; i < (m_DisableWhenEditHandBlock != null ? m_DisableWhenEditHandBlock.Length : 0); i++)
                 {
-                    m_DisableWhenEditHandBlock[i].enabled = true;
+                    if (m_DisableWhenEditHandBlock[i] != null)
+                    {
+                        m_DisableWhenEditHandBlock[i].enabled = true;
+                    }
                 }
 
                 return false;
             }
             else
             {
-                for (int i = 0; i < m_DisableWhenEditHandBlock.Length; i++)
+                for (int i = 0; i < (m_DisableWhenEditHandBlock != null ? m_DisableWhenEditHandBlock.Length : 0); i++)
                 {
-                    m_DisableWhenEditHandBlock[i].enabled = false;
+                    if (m_DisableWhenEditHandBlock[i] != null)
+                    {
+                        m_DisableWhenEditHandBlock[i].enabled = false;
+                    }
                 }
 
                 m_HandBlockInputGO.SetActive(true);
@@ -193,7 +208,13 @@ namespace Minecraft.PlayerControls
         {
             if (Input.GetMouseButtonDown(1))
             {
-                BlockData block = world.BlockDataTable.GetBlock(m_CurrentHandBlockText.text);
+                string currentHandBlockName = m_CurrentHandBlockText != null ? m_CurrentHandBlockText.text : string.Empty;
+                BlockData block = world.BlockDataTable.GetBlock(currentHandBlockName);
+
+                if (block == null)
+                {
+                    return;
+                }
 
                 if (Physics.RaycastBlock(ray, RaycastMaxDistance, world, m_PlaceRaycastSelector, out BlockRaycastHit hit))
                 {

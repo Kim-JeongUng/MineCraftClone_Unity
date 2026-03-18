@@ -213,11 +213,18 @@ namespace Minecraft.Multiplayer
                 return new Vector3(candidate.x, fallbackY, candidate.z);
             }
 
+            if (TryFindHighestSafeSpawnY(world, sampleX, sampleZ, out int surfaceSafeY))
+            {
+                return new Vector3(candidate.x, surfaceSafeY, candidate.z);
+            }
+
             int topVisibleY = world.RWAccessor.GetTopVisibleBlockY(sampleX, sampleZ, int.MinValue);
             if (topVisibleY != int.MinValue)
             {
                 int preferredSpawnY = Mathf.Max(topVisibleY + 1, m_MinSpawnHeight);
-                if (TryFindSafeSpawnY(world, sampleX, sampleZ, preferredSpawnY, preferredSpawnY + m_ClearanceAboveGround + 4, out int safeY))
+                int maxSearchY = Mathf.Min(ChunkHeight - 4, preferredSpawnY + m_ClearanceAboveGround + 8);
+
+                if (TryFindSafeSpawnY(world, sampleX, sampleZ, preferredSpawnY, maxSearchY, out int safeY))
                 {
                     return new Vector3(candidate.x, safeY, candidate.z);
                 }
@@ -232,6 +239,21 @@ namespace Minecraft.Multiplayer
 
             Debug.LogWarning($"[MP] SpawnService could not validate headroom. Falling back to raw Y. sample=({sampleX}, {sampleZ}), fallbackY={fallbackY}");
             return new Vector3(candidate.x, fallbackY, candidate.z);
+        }
+
+        private bool TryFindHighestSafeSpawnY(World world, int x, int z, out int safeY)
+        {
+            for (int y = ChunkHeight - 4; y >= Mathf.Max(1, m_MinSpawnHeight); y--)
+            {
+                if (HasStandingRoom(world, x, z, y))
+                {
+                    safeY = y;
+                    return true;
+                }
+            }
+
+            safeY = default;
+            return false;
         }
 
         private bool TryFindSafeSpawnY(World world, int x, int z, int minY, int maxY, out int safeY)
