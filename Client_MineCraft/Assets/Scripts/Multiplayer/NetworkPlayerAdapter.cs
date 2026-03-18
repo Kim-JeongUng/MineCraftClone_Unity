@@ -17,8 +17,11 @@ namespace Minecraft.Multiplayer
 
         private const int RemotePlayerLayer = 9;
         private const int LocalPlayerLayer = 10;
+        private const float MoveAnimationSyncThreshold = 0.05f;
 
         private bool m_HasBoundLocalWorldReferences;
+        private float m_LastSyncedMoveAnimationSpeed = -1f;
+        private bool m_LastSyncedDigAnimationState;
 
         private bool IsOwnedLocally => isLocalPlayer || isOwned;
 
@@ -153,10 +156,86 @@ namespace Minecraft.Multiplayer
             }
         }
 
+        public void SyncMoveAnimation(float moveSpeed)
+        {
+            if (!GameModeContext.IsMultiplayer || !IsOwnedLocally)
+            {
+                return;
+            }
+
+            if (Mathf.Abs(m_LastSyncedMoveAnimationSpeed - moveSpeed) < MoveAnimationSyncThreshold)
+            {
+                return;
+            }
+
+            m_LastSyncedMoveAnimationSpeed = moveSpeed;
+
+            if (isServer)
+            {
+                RpcSetMoveAnimation(moveSpeed);
+                return;
+            }
+
+            CmdSetMoveAnimation(moveSpeed);
+        }
+
+        public void SyncDigAnimationState(bool active)
+        {
+            if (!GameModeContext.IsMultiplayer || !IsOwnedLocally)
+            {
+                return;
+            }
+
+            if (m_LastSyncedDigAnimationState == active)
+            {
+                return;
+            }
+
+            m_LastSyncedDigAnimationState = active;
+
+            if (isServer)
+            {
+                RpcSetDigAnimationState(active);
+                return;
+            }
+
+            CmdSetDigAnimationState(active);
+        }
+
         [Command]
         private void CmdSetBlock(int x, int y, int z, int blockId, Quaternion rotation)
         {
             TrySetBlockOnServer(x, y, z, blockId, rotation);
+        }
+
+        [Command]
+        private void CmdSetMoveAnimation(float moveSpeed)
+        {
+            RpcSetMoveAnimation(moveSpeed);
+        }
+
+        [ClientRpc(includeOwner = false)]
+        private void RpcSetMoveAnimation(float moveSpeed)
+        {
+            if (m_PlayerEntity != null)
+            {
+                m_PlayerEntity.ApplyRemoteMoveAnimation(moveSpeed);
+            }
+        }
+
+        [Command]
+        private void CmdSetDigAnimationState(bool active)
+        {
+            RpcSetDigAnimationState(active);
+        }
+
+        [ClientRpc(includeOwner = false)]
+        private void RpcSetDigAnimationState(bool active)
+        {
+            if (m_PlayerEntity != null)
+            {
+                m_PlayerEntity.ApplyRemoteDigAnimationState(active);
+            }
         }
 
         [Server]
