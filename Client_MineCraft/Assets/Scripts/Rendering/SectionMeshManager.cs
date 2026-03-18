@@ -62,6 +62,12 @@ namespace Minecraft.Rendering
                 }
             });
 
+            if (m_World.PlayerTransform == null)
+            {
+                Profiler.EndSample();
+                return;
+            }
+
             Vector3 position = m_World.PlayerTransform.position;
             int limit = m_BuildNotImportantMeshPreFrame;
 

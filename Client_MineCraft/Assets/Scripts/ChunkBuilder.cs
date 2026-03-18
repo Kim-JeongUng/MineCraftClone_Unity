@@ -66,7 +66,7 @@ namespace Minecraft
 
         private void Update()
         {
-            if (m_World != null)
+            if (m_World?.PlayerTransform != null)
             {
                 Vector3 playerPos = m_World.PlayerTransform.position;
                 Interlocked.Exchange(ref m_PlayerX, playerPos.x);

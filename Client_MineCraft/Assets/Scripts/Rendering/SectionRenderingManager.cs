@@ -35,7 +35,6 @@ namespace Minecraft.Rendering
         [SerializeField] private RenderingSetting m_Setting;
         [SerializeField] private int m_TargetLayer;
 
-        private Transform m_MainCameraTransform;
         private BlockTable m_BlockTable;
         private NativeArray<float4> m_FrustumPlanes;
         private NativeList<int> m_VisibleSectionIndices;
@@ -51,7 +50,6 @@ namespace Minecraft.Rendering
 
         public void Initialize(IWorld world)
         {
-            m_MainCameraTransform = world.MainCamera.transform;
             m_BlockTable = world.BlockDataTable;
             m_FrustumPlanes = new NativeArray<float4>(FrustumPlaneCount, Allocator.Persistent);
             m_VisibleSectionIndices = new NativeList<int>(Allocator.Persistent);
@@ -64,6 +62,7 @@ namespace Minecraft.Rendering
             m_Initialized = true;
 
             m_MeshManager.Initialize(world);
+
 
             ShaderUtility.BlockTextures = m_BlockTable.GetTextureArray();
             ShaderUtility.DigProgressTextures = m_Setting.DigProgressTexture;
@@ -95,6 +94,11 @@ namespace Minecraft.Rendering
         private void Update()
         {
             if (!m_Initialized)
+            {
+                return;
+            }
+
+            if (m_World.PlayerTransform == null || m_World.MainCamera == null)
             {
                 return;
             }
@@ -165,7 +169,8 @@ namespace Minecraft.Rendering
         {
             Profiler.BeginSample("SectionRenderingManager.FrustumCulling");
             m_VisibleSectionIndices.Clear();
-            CalculateFrustumPlanes(m_World.MainCamera, m_MainCameraTransform, m_FrustumPlanes);
+            Camera mainCamera = m_World.MainCamera;
+            CalculateFrustumPlanes(mainCamera, mainCamera.transform, m_FrustumPlanes);
 
             FrustumCullingJob job = new FrustumCullingJob
             {
@@ -178,6 +183,7 @@ namespace Minecraft.Rendering
             job.ScheduleAppend(m_VisibleSectionIndices, m_Sections.Length, SectionCountInChunk).Complete();
             Profiler.EndSample();
         }
+
 
         private Mesh FindSectionMesh(int sectionIndex, out Vector3Int position)
         {

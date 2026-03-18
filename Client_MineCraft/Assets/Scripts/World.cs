@@ -84,13 +84,28 @@ namespace Minecraft
 
         public EntityManager EntityManager => m_EntityManager;
 
+        public event Action<Transform, Camera> LocalPlayerReferencesChanged;
+
         public void OverrideLocalPlayerReferences(Transform player, Camera mainCamera)
         {
-            if (player != null) m_Player = player;
-            if (mainCamera != null)
+            bool changed = false;
+
+            if (player != null && m_Player != player)
+            {
+                m_Player = player;
+                changed = true;
+            }
+
+            if (mainCamera != null && m_MainCamera != mainCamera)
             {
                 m_MainCamera = mainCamera;
                 m_EntityManager?.SetMainCamera(mainCamera);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                LocalPlayerReferencesChanged?.Invoke(m_Player, m_MainCamera);
             }
         }
 
@@ -158,6 +173,7 @@ namespace Minecraft
             ChunkManager.Initialize(this);
             RenderingManager.Initialize(this);
             m_EntityManager.Initialize();
+            m_EntityManager.SetMainCamera(m_MainCamera);
 
             yield return OnInitialize();
 
