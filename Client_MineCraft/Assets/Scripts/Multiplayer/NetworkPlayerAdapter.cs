@@ -2,6 +2,8 @@ using System.Collections;
 using Minecraft;
 using Minecraft.Configurations;
 using Minecraft.Entities;
+using Minecraft.PlayerControls;
+using Minecraft.UI;
 using Mirror;
 using UnityEngine;
 
@@ -78,6 +80,7 @@ namespace Minecraft.Multiplayer
             Transform previousPlayerTransform = world.PlayerTransform;
             world.OverrideLocalPlayerReferences(transform, m_PlayerCamera);
             m_HasBoundLocalWorldReferences = true;
+            BindCanvasHandBlockUI();
 
             if (previousPlayerTransform != null && previousPlayerTransform != transform)
             {
@@ -85,6 +88,23 @@ namespace Minecraft.Multiplayer
             }
 
             Debug.Log("[MP] Local network player entered world and references were rebound.");
+        }
+
+        private void BindCanvasHandBlockUI()
+        {
+            BlockInteraction blockInteraction = GetComponentInChildren<BlockInteraction>(true);
+            if (blockInteraction == null)
+            {
+                return;
+            }
+
+            UICanvasManager uiCanvasManager = FindObjectOfType<UICanvasManager>(true);
+            if (uiCanvasManager == null)
+            {
+                return;
+            }
+
+            blockInteraction.AssignHandBlockUI(uiCanvasManager.CurrentHandBlockText, uiCanvasManager.HandBlockInput);
         }
 
         private void ApplyLocalState(bool local)
