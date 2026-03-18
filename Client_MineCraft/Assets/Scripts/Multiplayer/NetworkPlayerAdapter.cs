@@ -21,6 +21,7 @@ namespace Minecraft.Multiplayer
 
         private bool m_HasBoundLocalWorldReferences;
         private float m_LastSyncedMoveAnimationSpeed = -1f;
+        private bool m_LastSyncedDigAnimationState;
 
         private bool IsOwnedLocally => isLocalPlayer || isOwned;
 
@@ -178,20 +179,27 @@ namespace Minecraft.Multiplayer
             CmdSetMoveAnimation(moveSpeed);
         }
 
-        public void SyncDigAnimationPulse()
+        public void SyncDigAnimationState(bool active)
         {
             if (!GameModeContext.IsMultiplayer || !IsOwnedLocally)
             {
                 return;
             }
 
-            if (isServer)
+            if (m_LastSyncedDigAnimationState == active)
             {
-                RpcPlayDigAnimationOnce();
                 return;
             }
 
-            CmdPlayDigAnimationOnce();
+            m_LastSyncedDigAnimationState = active;
+
+            if (isServer)
+            {
+                RpcSetDigAnimationState(active);
+                return;
+            }
+
+            CmdSetDigAnimationState(active);
         }
 
         [Command]
@@ -216,17 +224,17 @@ namespace Minecraft.Multiplayer
         }
 
         [Command]
-        private void CmdPlayDigAnimationOnce()
+        private void CmdSetDigAnimationState(bool active)
         {
-            RpcPlayDigAnimationOnce();
+            RpcSetDigAnimationState(active);
         }
 
         [ClientRpc(includeOwner = false)]
-        private void RpcPlayDigAnimationOnce()
+        private void RpcSetDigAnimationState(bool active)
         {
             if (m_PlayerEntity != null)
             {
-                m_PlayerEntity.ApplyRemoteDigAnimationOnce();
+                m_PlayerEntity.ApplyRemoteDigAnimationState(active);
             }
         }
 

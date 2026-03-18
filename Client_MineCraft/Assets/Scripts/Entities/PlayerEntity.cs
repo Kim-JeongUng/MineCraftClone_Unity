@@ -38,7 +38,7 @@ namespace Minecraft.Entities
         [Space]
         [Header("Animation")]
         [SerializeField] private Animator m_CharacterAnimator;
-        [SerializeField] [Min(0.01f)] private float m_DigAnimationRepeatInterval = 0.45f;
+        [SerializeField] [Min(0.01f)] private float m_DigAnimationPulseDuration = 0.45f;
 
         [Space]
         [Header("Events")]
@@ -67,8 +67,9 @@ namespace Minecraft.Entities
 
         private float m_LastTimePressW;
         private bool m_IsDigAnimationLoopActive;
-        private float m_NextDigAnimationTime;
         private float m_LastMoveAnimationSpeed = -1f;
+        private bool m_LastDigAnimationState;
+        private Coroutine m_DigAnimationPulseCoroutine;
 
         private static readonly int s_MoveSpeedHash = Animator.StringToHash("Move Speed");
         private static readonly int s_DigHash = Animator.StringToHash("Dig");
@@ -117,7 +118,7 @@ namespace Minecraft.Entities
 
             m_LastTimePressW = 0f;
             m_IsDigAnimationLoopActive = false;
-            m_NextDigAnimationTime = 0f;
+            m_LastDigAnimationState = false;
 
             // m_RunAction.performed += SwitchRunMode;
             m_JumpAction.performed += SwitchJumpMode;
@@ -186,10 +187,6 @@ namespace Minecraft.Entities
 
             m_PreviouslyGrounded = isGrounded;
 
-            if (m_IsDigAnimationLoopActive && Time.time >= m_NextDigAnimationTime)
-            {
-                TriggerDigAnimation(true);
-            }
         }
 
         protected override void FixedUpdate()
@@ -241,23 +238,22 @@ namespace Minecraft.Entities
 
         public void StartDigAnimationLoop()
         {
-            if (m_IsDigAnimationLoopActive)
-            {
-                return;
-            }
-
             m_IsDigAnimationLoopActive = true;
-            TriggerDigAnimation(true);
+            StopDigAnimationPulseCoroutine();
+            SetDigAnimation(true, true);
         }
 
         public void StopDigAnimationLoop()
         {
             m_IsDigAnimationLoopActive = false;
+            StopDigAnimationPulseCoroutine();
+            SetDigAnimation(false, true);
         }
 
         public void PlayDigAnimationOnce()
         {
-            TriggerDigAnimation(true);
+            StopDigAnimationPulseCoroutine();
+            m_DigAnimationPulseCoroutine = StartCoroutine(PlayDigAnimationPulse(true));
         }
 
         public void ApplyRemoteMoveAnimation(float moveSpeed)
@@ -265,21 +261,11 @@ namespace Minecraft.Entities
             SetMoveAnimation(moveSpeed, false);
         }
 
-        public void ApplyRemoteDigAnimationLoop(bool active)
+        public void ApplyRemoteDigAnimationState(bool active)
         {
-            if (active)
-            {
-                m_IsDigAnimationLoopActive = true;
-                TriggerDigAnimation(false);
-                return;
-            }
-
-            m_IsDigAnimationLoopActive = false;
-        }
-
-        public void ApplyRemoteDigAnimationOnce()
-        {
-            TriggerDigAnimation(false);
+            StopDigAnimationPulseCoroutine();
+            m_IsDigAnimationLoopActive = active;
+            SetDigAnimation(active, false);
         }
 
         private void UpdateMoveAnimation(Vector3 velocity)
@@ -310,19 +296,47 @@ namespace Minecraft.Entities
             }
         }
 
-        private void TriggerDigAnimation(bool synchronize)
+        private System.Collections.IEnumerator PlayDigAnimationPulse(bool synchronize)
+        {
+            SetDigAnimation(true, synchronize);
+            yield return new WaitForSeconds(m_DigAnimationPulseDuration);
+
+            if (!m_IsDigAnimationLoopActive)
+            {
+                SetDigAnimation(false, synchronize);
+            }
+
+            m_DigAnimationPulseCoroutine = null;
+        }
+
+        private void StopDigAnimationPulseCoroutine()
+        {
+            if (m_DigAnimationPulseCoroutine == null)
+            {
+                return;
+            }
+
+            StopCoroutine(m_DigAnimationPulseCoroutine);
+            m_DigAnimationPulseCoroutine = null;
+        }
+
+        private void SetDigAnimation(bool active, bool synchronize)
         {
             if (m_CharacterAnimator != null)
             {
-                m_CharacterAnimator.ResetTrigger(s_DigHash);
-                m_CharacterAnimator.SetTrigger(s_DigHash);
+                m_CharacterAnimator.SetBool(s_DigHash, active);
             }
 
-            m_NextDigAnimationTime = Time.time + m_DigAnimationRepeatInterval;
+            if (m_LastDigAnimationState == active)
+            {
+                return;
+            }
+
+            m_LastDigAnimationState = active;
 
             if (synchronize && m_NetworkPlayerAdapter != null)
             {
-                m_NetworkPlayerAdapter.SyncDigAnimationPulse();
+                m_NetworkPlayerAdapter.SyncDigAnimationState(active);
             }
         }
 
