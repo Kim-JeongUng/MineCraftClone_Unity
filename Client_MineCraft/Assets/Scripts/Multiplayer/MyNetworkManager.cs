@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System;
+using System.Security.Cryptography;
 using Minecraft;
 using Mirror;
 using kcp2k;
@@ -91,6 +92,13 @@ namespace Minecraft.Multiplayer
             m_SpawnService.ReleaseSpawn(conn);
             Debug.Log($"[MP] Server disconnect. connId={conn.connectionId}, connected(before)={NetworkServer.connections.Count}");
             base.OnServerDisconnect(conn);
+
+            int remainingConnections = NetworkServer.connections.Count;
+            if (remainingConnections == 0 && NetworkServer.active)
+            {
+                Debug.Log("[MP] No clients remain in the room. Stopping server so the next join creates a fresh session.");
+                StopServer();
+            }
         }
 
         public override void OnStartClient()
@@ -112,6 +120,7 @@ namespace Minecraft.Multiplayer
         public override void OnClientDisconnect()
         {
             Debug.Log("[MP] Client disconnected from server.");
+            ResetClientWorldState();
             base.OnClientDisconnect();
         }
 
@@ -151,6 +160,7 @@ namespace Minecraft.Multiplayer
         {
             EnsureBlockRemovalSystemReference();
             m_BlockRemovalSystem.StopClient();
+            ResetClientWorldState();
             base.OnStopClient();
         }
 
@@ -295,6 +305,22 @@ namespace Minecraft.Multiplayer
             m_SpawnService.ReleaseSpawn(conn);
         }
 
+
+        private void ResetClientWorldState()
+        {
+            if (GameModeContext.IsServer)
+            {
+                return;
+            }
+
+            if (World.ActiveSetting != null)
+            {
+                World.ActiveSetting.Seed = 0;
+            }
+
+            GameModeContext.MarkWorldSettingsPending();
+        }
+
         private void EnsureBlockRemovalSystemReference()
         {
             if (m_BlockRemovalSystem == null)
@@ -363,8 +389,12 @@ namespace Minecraft.Multiplayer
 
         private static int GenerateTimeBasedSeed()
         {
-            long ticks = DateTime.UtcNow.Ticks;
-            int seed = unchecked((int)(ticks ^ (ticks >> 32)));
+            Span<byte> buffer = stackalloc byte[4];
+            RandomNumberGenerator.Fill(buffer);
+            int randomSeed = BitConverter.ToInt32(buffer);
+            int timeSeed = unchecked((int)(DateTime.UtcNow.Ticks ^ (DateTime.UtcNow.Ticks >> 32)));
+            int guidSeed = Guid.NewGuid().GetHashCode();
+            int seed = randomSeed ^ timeSeed ^ guidSeed;
             return seed == 0 ? 13579 : seed;
         }
 
