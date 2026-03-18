@@ -4,17 +4,30 @@ using Minecraft.Entities;
 using Mirror;
 using UnityEngine;
 
+
 namespace Minecraft.Multiplayer
 {
     public class NetworkPlayerAdapter : NetworkBehaviour
     {
         [SerializeField] private PlayerEntity m_PlayerEntity;
         [SerializeField] private Camera m_PlayerCamera;
+        [SerializeField] private Behaviour[] m_LocalOnlyBehaviours;
+
+        private bool m_HasBoundLocalWorldReferences;
+
+        private bool IsOwnedLocally => isLocalPlayer || isOwned;
 
         public override void OnStartClient()
         {
             base.OnStartClient();
-            ApplyLocalState(isLocalPlayer);
+            ApplyLocalState(IsOwnedLocally);
+        }
+
+        public override void OnStartAuthority()
+        {
+            base.OnStartAuthority();
+            ApplyLocalState(true);
+            StartCoroutine(BindWorldAndDisableScenePlayer());
         }
 
         public override void OnStartLocalPlayer()
@@ -26,6 +39,11 @@ namespace Minecraft.Multiplayer
 
         private IEnumerator BindWorldAndDisableScenePlayer()
         {
+            if (m_HasBoundLocalWorldReferences)
+            {
+                yield break;
+            }
+
             World world = null;
             while (world == null)
             {
@@ -35,6 +53,7 @@ namespace Minecraft.Multiplayer
 
             Transform previousPlayerTransform = world.PlayerTransform;
             world.OverrideLocalPlayerReferences(transform, m_PlayerCamera);
+            m_HasBoundLocalWorldReferences = true;
 
             if (previousPlayerTransform != null && previousPlayerTransform != transform)
             {
@@ -49,6 +68,17 @@ namespace Minecraft.Multiplayer
             if (m_PlayerEntity != null)
             {
                 m_PlayerEntity.enabled = local;
+            }
+
+            if (m_LocalOnlyBehaviours != null)
+            {
+                for (int i = 0; i < m_LocalOnlyBehaviours.Length; i++)
+                {
+                    if (m_LocalOnlyBehaviours[i] != null)
+                    {
+                        m_LocalOnlyBehaviours[i].enabled = local;
+                    }
+                }
             }
 
             if (m_PlayerCamera != null)

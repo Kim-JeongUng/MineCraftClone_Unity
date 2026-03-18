@@ -64,7 +64,7 @@ namespace Minecraft.Multiplayer
         public override void OnServerConnect(NetworkConnectionToClient conn)
         {
             base.OnServerConnect(conn);
-            conn.Send(new WorldSettingsMessage { Seed = GetAuthoritativeSeed() });
+            SendWorldSettings(conn, "connect");
             Debug.Log($"[MP] Server accepted client. connId={conn.connectionId}, connected={NetworkServer.connections.Count}, sharedSeed={GetAuthoritativeSeed()}");
         }
 
@@ -211,6 +211,11 @@ namespace Minecraft.Multiplayer
             GameObject player = Instantiate(playerPrefab, spawnPosition, spawnRotation);
             bool added = NetworkServer.AddPlayerForConnection(conn, player);
 
+            if (added)
+            {
+                SendWorldSettings(conn, "add-player");
+            }
+
             RemovePendingSpawnRecord(connectionId);
 
             if (!added)
@@ -224,6 +229,18 @@ namespace Minecraft.Multiplayer
             Vector3 anchor = m_SpawnService.AnchorPosition;
             Vector3 delta = spawnPosition - anchor;
             Debug.Log($"[MP] AddPlayer complete. connId={connectionId}, player={player.name}, seed={GetAuthoritativeSeed()}, baseSpawn={m_SpawnService.BaseSpawnPosition}, anchor={anchor}, finalSpawn={spawnPosition}, deltaFromAnchor={delta}, mode={GameModeContext.Mode}");
+        }
+
+        private void SendWorldSettings(NetworkConnectionToClient conn, string reason)
+        {
+            if (conn == null)
+            {
+                return;
+            }
+
+            int seed = GetAuthoritativeSeed();
+            conn.Send(new WorldSettingsMessage { Seed = seed });
+            Debug.Log($"[MP] Sent authoritative world settings. connId={conn.connectionId}, seed={seed}, reason={reason}");
         }
 
         private void CleanupPendingSpawn(int connectionId)
