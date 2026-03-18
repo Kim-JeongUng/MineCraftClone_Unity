@@ -141,7 +141,9 @@ namespace Minecraft
                 yield return null;
             }
 
-            while (!PlayerTransform.TryGetComponent(out PlayerEntity playerEntity))
+            PlayerEntity playerEntity = null;
+
+            while (!PlayerTransform.TryGetComponent(out playerEntity))
             {
                 yield return null;
             }
