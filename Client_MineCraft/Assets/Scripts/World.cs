@@ -17,6 +17,31 @@ namespace Minecraft
     [DisallowMultipleComponent]
     public abstract class World : MonoBehaviour, IWorld
     {
+        public readonly struct BlockChangedInfo
+        {
+            public BlockChangedInfo(int x, int y, int z, BlockData block, Quaternion rotation, ModificationSource source)
+            {
+                X = x;
+                Y = y;
+                Z = z;
+                Block = block;
+                Rotation = rotation;
+                Source = source;
+            }
+
+            public int X { get; }
+
+            public int Y { get; }
+
+            public int Z { get; }
+
+            public BlockData Block { get; }
+
+            public Quaternion Rotation { get; }
+
+            public ModificationSource Source { get; }
+        }
+
         public static IWorld Active { get; private set; }
         public static WorldSetting ActiveSetting { get; set; }
 
@@ -85,6 +110,7 @@ namespace Minecraft
         public EntityManager EntityManager => m_EntityManager;
 
         public event Action<Transform, Camera> LocalPlayerReferencesChanged;
+        public event Action<BlockChangedInfo> BlockChanged;
 
         public void OverrideLocalPlayerReferences(Transform player, Camera mainCamera)
         {
@@ -239,20 +265,28 @@ namespace Minecraft
 
         public abstract void TickBlock(int x, int y, int z);
 
+        internal void NotifyBlockChanged(int x, int y, int z, BlockData block, Quaternion rotation, ModificationSource source)
+        {
+            BlockChanged?.Invoke(new BlockChangedInfo(x, y, z, block, rotation, source));
+        }
+
 
         [Serializable] private class OnInitializedEvent : UnityEvent<IWorld> { }
 
 
         private class DefaultWorldRWAccessor : IWorldRWAccessor
         {
+            private readonly World m_World;
+
             public bool Accessible => true;
 
             public Vector3Int WorldSpaceOrigin => Vector3Int.zero;
 
             public IWorld World { get; }
 
-            public DefaultWorldRWAccessor(IWorld world)
+            public DefaultWorldRWAccessor(World world)
             {
+                m_World = world;
                 World = world;
             }
 
@@ -350,12 +384,22 @@ namespace Minecraft
 
             public bool SetBlock(int x, int y, int z, BlockData value, Quaternion rotation, ModificationSource source)
             {
+                int worldX = x;
+                int worldY = y;
+                int worldZ = z;
                 ChunkPos pos = ChunkPos.GetFromAny(x, z);
 
                 if (World.ChunkManager.GetChunk(pos, false, out Chunk chunk))
                 {
                     this.AccessorSpaceToAccessorSpacePosition(chunk, ref x, ref y, ref z);
-                    return chunk.SetBlock(x, y, z, value, rotation, source);
+                    bool changed = chunk.SetBlock(x, y, z, value, rotation, source);
+
+                    if (changed)
+                    {
+                        m_World.NotifyBlockChanged(worldX, worldY, worldZ, value, rotation, source);
+                    }
+
+                    return changed;
                 }
 
                 return false;

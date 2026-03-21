@@ -94,29 +94,7 @@ namespace Minecraft.Multiplayer
                 return false;
             }
 
-            if (!world.RWAccessor.SetBlock(x, y, z, targetBlock, rotation, ModificationSource.PlayerAction))
-            {
-                return false;
-            }
-
-            ChunkPos chunkPos = ChunkPos.GetFromAny(x, z);
-            int localIndex = ToLocalBlockIndex(x - chunkPos.X, y, z - chunkPos.Z);
-            Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateServerChunkChanges(chunkPos);
-            chunkChanges[localIndex] = new BlockChangeState
-            {
-                BlockId = blockId,
-                Rotation = rotation
-            };
-
-            NetworkServer.SendToAll(new BlockChangedDeltaMessage
-            {
-                X = x,
-                Y = y,
-                Z = z,
-                BlockId = blockId,
-                Rotation = rotation
-            });
-            return true;
+            return world.RWAccessor.SetBlock(x, y, z, targetBlock, rotation, ModificationSource.PlayerAction);
         }
 
         private void BindWorldCallbacks()
@@ -139,6 +117,7 @@ namespace Minecraft.Multiplayer
                         DetachWorldCallbacks();
                         m_BoundWorld = activeWorld;
                         m_BoundWorld.ChunkManager.OnChunkLoaded += OnChunkLoaded;
+                        m_BoundWorld.BlockChanged += OnWorldBlockChanged;
                     }
 
                     m_WorldBindingRoutine = null;
@@ -169,7 +148,38 @@ namespace Minecraft.Multiplayer
                 m_BoundWorld.ChunkManager.OnChunkLoaded -= OnChunkLoaded;
             }
 
+            if (m_BoundWorld != null)
+            {
+                m_BoundWorld.BlockChanged -= OnWorldBlockChanged;
+            }
+
             m_BoundWorld = null;
+        }
+
+        private void OnWorldBlockChanged(World.BlockChangedInfo blockChange)
+        {
+            if (!NetworkServer.active || blockChange.Source == ModificationSource.InternalOrSystem || blockChange.Block == null)
+            {
+                return;
+            }
+
+            ChunkPos chunkPos = ChunkPos.GetFromAny(blockChange.X, blockChange.Z);
+            int localIndex = ToLocalBlockIndex(blockChange.X - chunkPos.X, blockChange.Y, blockChange.Z - chunkPos.Z);
+            Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateServerChunkChanges(chunkPos);
+            chunkChanges[localIndex] = new BlockChangeState
+            {
+                BlockId = blockChange.Block.ID,
+                Rotation = blockChange.Rotation
+            };
+
+            NetworkServer.SendToAll(new BlockChangedDeltaMessage
+            {
+                X = blockChange.X,
+                Y = blockChange.Y,
+                Z = blockChange.Z,
+                BlockId = blockChange.Block.ID,
+                Rotation = blockChange.Rotation
+            });
         }
 
         private void OnChunkLoaded(Chunk chunk)
