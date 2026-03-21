@@ -33,7 +33,7 @@ namespace Minecraft.PlayerControls
             "gravel",
             "log_oak",
             "leaves_oak",
-            "glass_block",
+            "tnt",
             "water",
             "lava"
         };
@@ -237,7 +237,7 @@ namespace Minecraft.PlayerControls
                 return;
             }
 
-            Font builtinFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            //Font builtinFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
 
             for (int i = 0; i < m_HotbarSlotTexts.Length; i++)
             {
@@ -256,14 +256,14 @@ namespace Minecraft.PlayerControls
                 rectTransform.offsetMin = new Vector2(4f, 4f);
                 rectTransform.offsetMax = new Vector2(-4f, -4f);
 
-                Text label = labelGO.GetComponent<Text>();
-                label.font = builtinFont;
-                label.fontSize = 12;
-                label.alignment = TextAnchor.MiddleCenter;
-                label.horizontalOverflow = HorizontalWrapMode.Wrap;
-                label.verticalOverflow = VerticalWrapMode.Overflow;
-                label.supportRichText = false;
-                m_HotbarSlotTexts[i] = label;
+                // Text label = labelGO.GetComponent<Text>();
+                // label.font = builtinFont;
+                // label.fontSize = 12;
+                // label.alignment = TextAnchor.MiddleCenter;
+                // label.horizontalOverflow = HorizontalWrapMode.Wrap;
+                // label.verticalOverflow = VerticalWrapMode.Overflow;
+                // label.supportRichText = false;
+                // m_HotbarSlotTexts[i] = label;
             }
         }
 
