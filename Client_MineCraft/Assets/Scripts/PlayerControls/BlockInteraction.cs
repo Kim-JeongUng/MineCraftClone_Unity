@@ -61,6 +61,7 @@ namespace Minecraft.PlayerControls
 
         [Header("Selection Visuals")]
         [SerializeField] [Range(0, 9)] private int m_SelectedHotbarIndex;
+        [SerializeField] private bool m_InvertMouseWheelHotbar = false;
         [SerializeField] private Color m_SelectedSlotColor = new Color(1f, 1f, 1f, 0.95f);
         [SerializeField] private Color m_UnselectedSlotColor = new Color(1f, 1f, 1f, 0.2f);
         [SerializeField] private Color m_SelectedInventoryButtonColor = new Color(1f, 0.95f, 0.55f, 0.28f);
@@ -207,6 +208,20 @@ namespace Minecraft.PlayerControls
             if (m_IsBlockInventoryOpen)
             {
                 return true;
+            EnsureHotbarBlockNameSize();
+
+            float mouseWheelInput = Input.mouseScrollDelta.y;
+            if (!Mathf.Approximately(mouseWheelInput, 0f))
+            {
+                int direction = mouseWheelInput > 0f ? -1 : 1;
+                if (m_InvertMouseWheelHotbar)
+                {
+                    direction = -direction;
+                }
+
+                int nextIndex = (m_SelectedHotbarIndex + direction + m_HotbarBlockNames.Length) % m_HotbarBlockNames.Length;
+                SetSelectedHotbarIndex(nextIndex);
+                return false;
             }
 
             for (int i = 0; i < s_HotbarKeyCodes.Length; i++)
