@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using Minecraft.Configurations;
 using Minecraft.Entities;
 using Minecraft.Lua;
@@ -8,6 +10,9 @@ using Minecraft.Rendering;
 using UnityEngine;
 using UnityEngine.UI;
 using Physics = Minecraft.PhysicSystem.Physics;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Minecraft.PlayerControls
 {
@@ -40,8 +45,7 @@ namespace Minecraft.PlayerControls
         [SerializeField] [Range(0, 9)] private int m_SelectedHotbarIndex;
         [SerializeField] private Color m_SelectedSlotColor = new Color(1f, 1f, 1f, 0.95f);
         [SerializeField] private Color m_UnselectedSlotColor = new Color(1f, 1f, 1f, 0.2f);
-        [SerializeField] private Color m_SelectedTextColor = new Color(1f, 0.95f, 0.55f, 1f);
-        [SerializeField] private Color m_UnselectedTextColor = Color.white;
+        [SerializeField] private KeyCode m_BlockInventoryToggleKey = KeyCode.I;
 
         [NonSerialized] private Camera m_Camera;
         [NonSerialized] private IAABBEntity m_PlayerEntity;
@@ -57,6 +61,32 @@ namespace Minecraft.PlayerControls
         [NonSerialized] private float m_ClickTime;
 
         [NonSerialized] private GameObject m_HandBlockInputGO;
+        [NonSerialized] private Canvas m_UICanvas;
+        [NonSerialized] private GameObject m_BlockInventoryRoot;
+        [NonSerialized] private GridLayoutGroup m_BlockInventoryGrid;
+        [NonSerialized] private bool m_IsBlockInventoryOpen;
+        [NonSerialized] private string[] m_AvailableBlockNames = Array.Empty<string>();
+
+        private readonly Dictionary<string, Sprite> m_BlockSpriteCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<int, Image> m_HotbarIconImages = new Dictionary<int, Image>();
+
+        private const string BlockSpriteFolderAssetPath = "Assets/Minecraft Default PBR Resources/Block Sprites";
+        private static readonly Color s_InventoryPanelColor = new Color(0f, 0f, 0f, 0.8f);
+        private static readonly Color s_InventoryButtonColor = new Color(1f, 1f, 1f, 0.14f);
+        private static readonly Color s_InventoryButtonHighlightColor = new Color(1f, 0.95f, 0.55f, 0.28f);
+
+        private static readonly Dictionary<string, string[]> s_BlockSpriteCandidates = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "grass", new[] { "grass_top.png", "grass_side.png" } },
+            { "water", new[] { "water_still.png" } },
+            { "lava", new[] { "lava_still.png" } },
+            { "leaves_oak", new[] { "leaves_oak.tga", "leaves_oak_carried.tga" } },
+            { "quartz_block_half", new[] { "quartz_block_top.png", "quartz_block_side.png" } },
+            { "glass_block", new[] { "glass.tga" } },
+            { "torch", new[] { "torch_on.tga" } },
+            { "wall_torch", new[] { "torch_on.tga" } },
+            { "cactus_DO_NOT_USE", new[] { "cactus_side.tga", "cactus_top.tga" } }
+        };
 
         private static readonly KeyCode[] s_HotbarKeyCodes =
         {
@@ -83,6 +113,7 @@ namespace Minecraft.PlayerControls
             }
 
             InitializeHotbarUI();
+            EnsureInventoryUI();
             ApplySelectedHotbar(true);
         }
 
@@ -112,6 +143,7 @@ namespace Minecraft.PlayerControls
             }
 
             InitializeHotbarUI();
+            EnsureInventoryUI();
             ApplySelectedHotbar(true);
         }
 
@@ -120,6 +152,7 @@ namespace Minecraft.PlayerControls
             StopDigAnimationLoop();
             SetDigProgress(0);
             ShaderUtility.TargetedBlockPosition = Vector3.down;
+            SetBlockInventoryOpen(false);
         }
 
         private void Update()
@@ -129,7 +162,7 @@ namespace Minecraft.PlayerControls
                 return;
             }
 
-            if (!m_Camera || m_PlayerEntity == null)
+            if (m_IsBlockInventoryOpen || !m_Camera || m_PlayerEntity == null)
             {
                 return;
             }
@@ -150,6 +183,17 @@ namespace Minecraft.PlayerControls
 
         private bool ChangeHandBlock()
         {
+            if (Input.GetKeyDown(m_BlockInventoryToggleKey))
+            {
+                SetBlockInventoryOpen(!m_IsBlockInventoryOpen);
+                return m_IsBlockInventoryOpen;
+            }
+
+            if (m_IsBlockInventoryOpen)
+            {
+                return true;
+            }
+
             for (int i = 0; i < s_HotbarKeyCodes.Length; i++)
             {
                 if (!Input.GetKeyDown(s_HotbarKeyCodes[i]))
@@ -168,8 +212,9 @@ namespace Minecraft.PlayerControls
         {
             EnsureHotbarBlockNameSize();
             CacheHotbarSlotsFromRoot();
-            EnsureHotbarSlotTexts();
-            RefreshHotbarLabels();
+            ClearHotbarLabels();
+            EnsureHotbarIcons();
+            RefreshHotbarIcons();
         }
 
         private void EnsureHotbarBlockNameSize()
@@ -214,6 +259,8 @@ namespace Minecraft.PlayerControls
                 m_HotbarSlotTexts = new Text[10];
             }
 
+            m_UICanvas = m_HotbarRoot.GetComponentInParent<Canvas>(true);
+
             for (int i = 0; i < 10; i++)
             {
                 Transform child = m_HotbarRoot.Find(i == 0 ? "Item" : $"Item ({i})");
@@ -230,58 +277,330 @@ namespace Minecraft.PlayerControls
             }
         }
 
-        private void EnsureHotbarSlotTexts()
+        private void ClearHotbarLabels()
         {
-            if (m_HotbarRoot == null || m_HotbarSlotTexts == null)
+            if (m_CurrentHandBlockText != null)
             {
-                return;
+                m_CurrentHandBlockText.text = string.Empty;
+                m_CurrentHandBlockText.gameObject.SetActive(false);
             }
 
-            //Font builtinFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
-
-            for (int i = 0; i < m_HotbarSlotTexts.Length; i++)
-            {
-                if (m_HotbarSlotTexts[i] != null || i >= m_HotbarRoot.childCount)
-                {
-                    continue;
-                }
-
-                Transform slot = m_HotbarRoot.GetChild(i);
-                GameObject labelGO = new GameObject($"Slot Label {i + 1}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
-                labelGO.transform.SetParent(slot, false);
-
-                RectTransform rectTransform = labelGO.GetComponent<RectTransform>();
-                rectTransform.anchorMin = Vector2.zero;
-                rectTransform.anchorMax = Vector2.one;
-                rectTransform.offsetMin = new Vector2(4f, 4f);
-                rectTransform.offsetMax = new Vector2(-4f, -4f);
-
-                // Text label = labelGO.GetComponent<Text>();
-                // label.font = builtinFont;
-                // label.fontSize = 12;
-                // label.alignment = TextAnchor.MiddleCenter;
-                // label.horizontalOverflow = HorizontalWrapMode.Wrap;
-                // label.verticalOverflow = VerticalWrapMode.Overflow;
-                // label.supportRichText = false;
-                // m_HotbarSlotTexts[i] = label;
-            }
-        }
-
-        private void RefreshHotbarLabels()
-        {
             if (m_HotbarSlotTexts == null)
             {
                 return;
             }
 
-            for (int i = 0; i < m_HotbarSlotTexts.Length && i < m_HotbarBlockNames.Length; i++)
+            for (int i = 0; i < m_HotbarSlotTexts.Length; i++)
             {
                 if (m_HotbarSlotTexts[i] == null)
                 {
                     continue;
                 }
 
-                m_HotbarSlotTexts[i].text = $"{GetHotbarDisplayKey(i)}\n{GetDisplayName(m_HotbarBlockNames[i])}";
+                m_HotbarSlotTexts[i].text = string.Empty;
+                m_HotbarSlotTexts[i].gameObject.SetActive(false);
+            }
+        }
+
+        private void EnsureHotbarIcons()
+        {
+            if (m_HotbarRoot == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < 10; i++)
+            {
+                Transform slot = m_HotbarRoot.Find(i == 0 ? "Item" : $"Item ({i})");
+                if (slot == null)
+                {
+                    continue;
+                }
+
+                if (m_HotbarIconImages.ContainsKey(i) && m_HotbarIconImages[i] != null)
+                {
+                    continue;
+                }
+
+                Transform iconTransform = slot.Find("Block Icon");
+                Image iconImage;
+                if (iconTransform != null)
+                {
+                    iconImage = iconTransform.GetComponent<Image>();
+                }
+                else
+                {
+                    GameObject iconGO = new GameObject("Block Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                    iconGO.transform.SetParent(slot, false);
+                    RectTransform iconRect = iconGO.GetComponent<RectTransform>();
+                    iconRect.anchorMin = Vector2.zero;
+                    iconRect.anchorMax = Vector2.one;
+                    iconRect.offsetMin = new Vector2(8f, 8f);
+                    iconRect.offsetMax = new Vector2(-8f, -8f);
+                    iconImage = iconGO.GetComponent<Image>();
+                    iconImage.raycastTarget = false;
+                    iconImage.preserveAspect = true;
+                }
+
+                m_HotbarIconImages[i] = iconImage;
+            }
+        }
+
+        private void RefreshHotbarIcons()
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                if (!m_HotbarIconImages.TryGetValue(i, out Image iconImage) || iconImage == null)
+                {
+                    continue;
+                }
+
+                string blockName = i < m_HotbarBlockNames.Length ? m_HotbarBlockNames[i] : string.Empty;
+                iconImage.sprite = GetBlockSprite(blockName);
+                iconImage.enabled = iconImage.sprite != null;
+                iconImage.color = Color.white;
+            }
+        }
+
+        private void EnsureInventoryUI()
+        {
+            CacheHotbarSlotsFromRoot();
+            if (m_UICanvas == null || m_BlockInventoryRoot != null)
+            {
+                RefreshInventoryChoices();
+                return;
+            }
+
+            GameObject panelGO = new GameObject("Block Inventory", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            panelGO.transform.SetParent(m_UICanvas.transform, false);
+            RectTransform panelRect = panelGO.GetComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.sizeDelta = new Vector2(720f, 420f);
+            panelRect.anchoredPosition = new Vector2(0f, 20f);
+
+            Image panelImage = panelGO.GetComponent<Image>();
+            panelImage.color = s_InventoryPanelColor;
+            panelImage.raycastTarget = true;
+
+            GameObject gridGO = new GameObject("Grid", typeof(RectTransform), typeof(CanvasRenderer), typeof(GridLayoutGroup));
+            gridGO.transform.SetParent(panelGO.transform, false);
+            RectTransform gridRect = gridGO.GetComponent<RectTransform>();
+            gridRect.anchorMin = Vector2.zero;
+            gridRect.anchorMax = Vector2.one;
+            gridRect.offsetMin = new Vector2(20f, 20f);
+            gridRect.offsetMax = new Vector2(-20f, -20f);
+
+            m_BlockInventoryGrid = gridGO.GetComponent<GridLayoutGroup>();
+            m_BlockInventoryGrid.cellSize = new Vector2(64f, 64f);
+            m_BlockInventoryGrid.spacing = new Vector2(12f, 12f);
+            m_BlockInventoryGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            m_BlockInventoryGrid.constraintCount = 8;
+            m_BlockInventoryGrid.childAlignment = TextAnchor.UpperLeft;
+            m_BlockInventoryGrid.startAxis = GridLayoutGroup.Axis.Horizontal;
+            m_BlockInventoryGrid.startCorner = GridLayoutGroup.Corner.UpperLeft;
+
+            m_BlockInventoryRoot = panelGO;
+            m_BlockInventoryRoot.SetActive(false);
+            RefreshInventoryChoices();
+        }
+
+        private void RefreshInventoryChoices()
+        {
+            if (m_BlockInventoryGrid == null)
+            {
+                return;
+            }
+
+            string[] blockNames = GetAvailableBlocks();
+            if (m_AvailableBlockNames.Length == blockNames.Length)
+            {
+                bool same = true;
+                for (int i = 0; i < blockNames.Length; i++)
+                {
+                    if (!string.Equals(m_AvailableBlockNames[i], blockNames[i], StringComparison.Ordinal))
+                    {
+                        same = false;
+                        break;
+                    }
+                }
+
+                if (same && m_BlockInventoryGrid.transform.childCount == blockNames.Length)
+                {
+                    return;
+                }
+            }
+
+            m_AvailableBlockNames = blockNames;
+            for (int i = m_BlockInventoryGrid.transform.childCount - 1; i >= 0; i--)
+            {
+                Destroy(m_BlockInventoryGrid.transform.GetChild(i).gameObject);
+            }
+
+            for (int i = 0; i < m_AvailableBlockNames.Length; i++)
+            {
+                CreateInventoryButton(m_AvailableBlockNames[i]);
+            }
+        }
+
+        private string[] GetAvailableBlocks()
+        {
+            if (m_PlayerEntity?.World?.BlockDataTable == null)
+            {
+                return GetFallbackBlockList();
+            }
+
+            List<string> names = new List<string>();
+            BlockTable table = m_PlayerEntity.World.BlockDataTable;
+            for (int i = 0; i < table.BlockCount; i++)
+            {
+                BlockData block = table.GetBlock(i);
+                if (!IsSelectableBlock(block))
+                {
+                    continue;
+                }
+
+                names.Add(block.InternalName);
+            }
+
+            return names.ToArray();
+        }
+
+        private string[] GetFallbackBlockList()
+        {
+            List<string> names = new List<string>();
+            foreach (string blockName in m_HotbarBlockNames)
+            {
+                if (string.IsNullOrWhiteSpace(blockName) || names.Contains(blockName))
+                {
+                    continue;
+                }
+
+                names.Add(blockName);
+            }
+
+            return names.ToArray();
+        }
+
+        private static bool IsSelectableBlock(BlockData block)
+        {
+            return block != null
+                   && !string.IsNullOrWhiteSpace(block.InternalName)
+                   && !string.Equals(block.InternalName, "air", StringComparison.OrdinalIgnoreCase)
+                   && block.InternalName.IndexOf("DO_NOT_USE", StringComparison.OrdinalIgnoreCase) < 0;
+        }
+
+        private void CreateInventoryButton(string blockName)
+        {
+            GameObject buttonGO = new GameObject(blockName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            buttonGO.transform.SetParent(m_BlockInventoryGrid.transform, false);
+
+            Image background = buttonGO.GetComponent<Image>();
+            background.color = string.Equals(blockName, GetSelectedBlockName(), StringComparison.OrdinalIgnoreCase)
+                ? s_InventoryButtonHighlightColor
+                : s_InventoryButtonColor;
+            background.raycastTarget = true;
+
+            Button button = buttonGO.GetComponent<Button>();
+            ColorBlock colors = button.colors;
+            colors.normalColor = background.color;
+            colors.highlightedColor = new Color(1f, 1f, 1f, 0.24f);
+            colors.pressedColor = new Color(1f, 1f, 1f, 0.32f);
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = new Color(1f, 1f, 1f, 0.08f);
+            button.colors = colors;
+            button.onClick.AddListener(() => AssignBlockToSelectedSlot(blockName));
+
+            GameObject iconGO = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            iconGO.transform.SetParent(buttonGO.transform, false);
+            RectTransform iconRect = iconGO.GetComponent<RectTransform>();
+            iconRect.anchorMin = Vector2.zero;
+            iconRect.anchorMax = Vector2.one;
+            iconRect.offsetMin = new Vector2(8f, 8f);
+            iconRect.offsetMax = new Vector2(-8f, -8f);
+
+            Image iconImage = iconGO.GetComponent<Image>();
+            iconImage.raycastTarget = false;
+            iconImage.preserveAspect = true;
+            iconImage.sprite = GetBlockSprite(blockName);
+            iconImage.enabled = iconImage.sprite != null;
+        }
+
+        private void AssignBlockToSelectedSlot(string blockName)
+        {
+            EnsureHotbarBlockNameSize();
+            m_HotbarBlockNames[m_SelectedHotbarIndex] = blockName;
+            ApplySelectedHotbar(true);
+            RefreshInventorySelectionHighlight();
+            SetBlockInventoryOpen(false);
+        }
+
+        private void RefreshInventorySelectionHighlight()
+        {
+            if (m_BlockInventoryGrid == null)
+            {
+                return;
+            }
+
+            string selectedBlock = GetSelectedBlockName();
+            for (int i = 0; i < m_BlockInventoryGrid.transform.childCount; i++)
+            {
+                Transform child = m_BlockInventoryGrid.transform.GetChild(i);
+                Image image = child.GetComponent<Image>();
+                if (image == null)
+                {
+                    continue;
+                }
+
+                bool isSelected = string.Equals(child.name, selectedBlock, StringComparison.OrdinalIgnoreCase);
+                image.color = isSelected ? s_InventoryButtonHighlightColor : s_InventoryButtonColor;
+
+                Button button = child.GetComponent<Button>();
+                if (button == null)
+                {
+                    continue;
+                }
+
+                ColorBlock colors = button.colors;
+                colors.normalColor = image.color;
+                button.colors = colors;
+            }
+        }
+
+        private void SetBlockInventoryOpen(bool open)
+        {
+            m_IsBlockInventoryOpen = open;
+            if (m_BlockInventoryRoot != null)
+            {
+                if (open)
+                {
+                    RefreshInventoryChoices();
+                    RefreshInventorySelectionHighlight();
+                }
+
+                m_BlockInventoryRoot.SetActive(open);
+            }
+
+            SetGameplayInputEnabled(!open);
+
+            Cursor.visible = open;
+            Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
+        }
+
+        private void SetGameplayInputEnabled(bool enabled)
+        {
+            if (m_DisableWhenEditHandBlock == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < m_DisableWhenEditHandBlock.Length; i++)
+            {
+                if (m_DisableWhenEditHandBlock[i] != null)
+                {
+                    m_DisableWhenEditHandBlock[i].enabled = enabled;
+                }
             }
         }
 
@@ -291,18 +610,20 @@ namespace Minecraft.PlayerControls
             ApplySelectedHotbar(false);
         }
 
-        private void ApplySelectedHotbar(bool forceRefreshLabels)
+        private void ApplySelectedHotbar(bool forceRefreshVisuals)
         {
             EnsureHotbarBlockNameSize();
 
-            if (forceRefreshLabels)
+            if (forceRefreshVisuals)
             {
-                RefreshHotbarLabels();
+                ClearHotbarLabels();
+                EnsureHotbarIcons();
+                RefreshHotbarIcons();
             }
 
             if (m_CurrentHandBlockText != null)
             {
-                m_CurrentHandBlockText.text = GetSelectedBlockName();
+                m_CurrentHandBlockText.text = string.Empty;
             }
 
             for (int i = 0; i < 10; i++)
@@ -312,12 +633,9 @@ namespace Minecraft.PlayerControls
                 {
                     m_HotbarSlotImages[i].color = isSelected ? m_SelectedSlotColor : m_UnselectedSlotColor;
                 }
-
-                if (m_HotbarSlotTexts != null && i < m_HotbarSlotTexts.Length && m_HotbarSlotTexts[i] != null)
-                {
-                    m_HotbarSlotTexts[i].color = isSelected ? m_SelectedTextColor : m_UnselectedTextColor;
-                }
             }
+
+            RefreshInventorySelectionHighlight();
         }
 
         private string GetSelectedBlockName()
@@ -326,19 +644,54 @@ namespace Minecraft.PlayerControls
             return m_HotbarBlockNames[m_SelectedHotbarIndex] ?? string.Empty;
         }
 
-        private static string GetHotbarDisplayKey(int index)
-        {
-            return index == 9 ? "0" : (index + 1).ToString();
-        }
-
-        private static string GetDisplayName(string blockName)
+        private Sprite GetBlockSprite(string blockName)
         {
             if (string.IsNullOrWhiteSpace(blockName))
             {
-                return "EMPTY";
+                return null;
             }
 
-            return blockName.Replace('_', ' ').ToUpperInvariant();
+            if (m_BlockSpriteCache.TryGetValue(blockName, out Sprite cachedSprite))
+            {
+                return cachedSprite;
+            }
+
+            foreach (string fileName in GetSpriteCandidateFileNames(blockName))
+            {
+                Sprite sprite = LoadSpriteFromAssetFolder(fileName);
+                if (sprite != null)
+                {
+                    m_BlockSpriteCache[blockName] = sprite;
+                    return sprite;
+                }
+            }
+
+            m_BlockSpriteCache[blockName] = null;
+            return null;
+        }
+
+        private static IEnumerable<string> GetSpriteCandidateFileNames(string blockName)
+        {
+            if (s_BlockSpriteCandidates.TryGetValue(blockName, out string[] specificCandidates))
+            {
+                foreach (string candidate in specificCandidates)
+                {
+                    yield return candidate;
+                }
+            }
+
+            yield return $"{blockName}.png";
+            yield return $"{blockName}.tga";
+        }
+
+        private static Sprite LoadSpriteFromAssetFolder(string fileName)
+        {
+#if UNITY_EDITOR
+            string assetPath = Path.Combine(BlockSpriteFolderAssetPath, fileName).Replace('\\', '/');
+            return AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+#else
+            return null;
+#endif
         }
 
         private void DigBlock(Ray ray, IWorld world)
@@ -373,15 +726,6 @@ namespace Minecraft.PlayerControls
                                 {
                                     world.RWAccessor.SetBlock(hit.Position.x, hit.Position.y, hit.Position.z, airBlock, Quaternion.identity, ModificationSource.PlayerAction);
                                 }
-
-                                //block.PlayDigAudio(m_AudioSource);
-
-                                // if (Setting.SettingManager.Active.RenderingSetting.EnableDestroyEffect)
-                                // {
-                                //   ParticleSystem effect = Instantiate(m_DestroyEffectPrefab, firstHitPos + new Vector3(0.5f, 0.5f, 0.5f), Quaternion.identity).GetComponent<ParticleSystem>();
-                                //   ParticleSystem.MainModule main = effect.main;
-                                //   main.startColor = block.DestoryEffectColor;
-                                // }
                             }
                         }
                         else
@@ -429,7 +773,6 @@ namespace Minecraft.PlayerControls
             }
             else
             {
-                // 선택된 블록 없음
                 StopDigAnimationLoop();
                 ShaderUtility.TargetedBlockPosition = Vector3.down;
             }
@@ -457,17 +800,16 @@ namespace Minecraft.PlayerControls
                     {
                         Quaternion rotation = Quaternion.identity;
 
-                        // 반드시 아래 순서대로 곱해 Y축 회전 후 XZ축 회전을 보장
-
                         if ((block.RotationAxes & BlockRotationAxes.AroundXOrZAxis) == BlockRotationAxes.AroundXOrZAxis)
                         {
-                            rotation *= Quaternion.FromToRotation(Vector3.up, hit.Normal);                        }
+                            rotation *= Quaternion.FromToRotation(Vector3.up, hit.Normal);
+                        }
 
                         if ((block.RotationAxes & BlockRotationAxes.AroundYAxis) == BlockRotationAxes.AroundYAxis)
                         {
                             Vector3 forward = m_PlayerEntity.Forward;
                             forward = Mathf.Abs(forward.x) > Mathf.Abs(forward.z) ? new Vector3(forward.x, 0, 0) : new Vector3(0, 0, forward.z);
-                            rotation *= Quaternion.LookRotation(-forward.normalized, Vector3.up); // 플레이어 
+                            rotation *= Quaternion.LookRotation(-forward.normalized, Vector3.up);
                         }
 
                         if (GameModeContext.IsMultiplayer)
