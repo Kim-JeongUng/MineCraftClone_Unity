@@ -296,8 +296,7 @@ namespace Minecraft.Multiplayer
         {
             return block == null
                    || block.Flags.HasFlag(BlockFlags.AlwaysInvisible)
-                   || block.Flags.HasFlag(BlockFlags.IgnoreCollisions)
-                   || block.PhysicState != PhysicState.Solid;
+                   || (block.Flags.HasFlag(BlockFlags.IgnoreCollisions) && block.PhysicState != PhysicState.Fluid);
         }
     }
 }
