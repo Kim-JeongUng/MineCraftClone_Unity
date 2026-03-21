@@ -17,6 +17,9 @@ namespace Minecraft.UI
         [SerializeField] private Text m_LoadingText;
         [SerializeField] private Text m_CurrentHandBlockText;
         [SerializeField] private InputField m_HandBlockInput;
+        [SerializeField] private Transform m_HotbarRoot;
+        [SerializeField] private GameObject m_BlockInventoryRoot;
+        [SerializeField] private Transform m_BlockInventoryGridRoot;
         [SerializeField] [Min(0.1f)] private float m_MinChunkLoadingSeconds = 1.5f;
         [SerializeField] [Min(0.05f)] private float m_CloseDelayAfterFullProgress = 2.5f;
         [SerializeField] [Min(0.1f)] private float m_DefaultProgressSpeed = 0.6f;
@@ -24,6 +27,9 @@ namespace Minecraft.UI
 
         public Text CurrentHandBlockText => m_CurrentHandBlockText;
         public InputField HandBlockInput => m_HandBlockInput;
+        public Transform HotbarRoot => m_HotbarRoot;
+        public GameObject BlockInventoryRoot => m_BlockInventoryRoot;
+        public Transform BlockInventoryGridRoot => m_BlockInventoryGridRoot;
 
         private float m_CurrentProgress;
         private float m_ChunkLoadingElapsed;

@@ -113,10 +113,25 @@ namespace Minecraft.PlayerControls
             KeyCode.Alpha0
         };
 
-        public void AssignHandBlockUI(Text currentHandBlockText, InputField handBlockInput)
+        public void AssignHandBlockUI(Text currentHandBlockText, InputField handBlockInput, Transform hotbarRoot = null, GameObject blockInventoryRoot = null, Transform blockInventoryGridRoot = null)
         {
             m_CurrentHandBlockText = currentHandBlockText;
             m_HandBlockInput = handBlockInput;
+            if (hotbarRoot != null)
+            {
+                m_HotbarRoot = hotbarRoot;
+            }
+
+            if (blockInventoryRoot != null)
+            {
+                m_BlockInventoryRoot = blockInventoryRoot;
+            }
+
+            if (blockInventoryGridRoot != null)
+            {
+                m_BlockInventoryGridRoot = blockInventoryGridRoot;
+            }
+
             InitializeHandBlockInput();
             InitializeHotbarUI();
             InitializeInventoryUI();
@@ -208,6 +223,7 @@ namespace Minecraft.PlayerControls
             if (m_IsBlockInventoryOpen)
             {
                 return true;
+            }
             EnsureHotbarBlockNameSize();
 
             float mouseWheelInput = Input.mouseScrollDelta.y;
@@ -357,11 +373,13 @@ namespace Minecraft.PlayerControls
                 m_BlockInventoryRoot.SetActive(false);
             }
 
-            if (m_InventoryButtonsBound)
+            if (m_InventoryButtonsBound && m_BlockInventoryButtons != null && m_BlockInventoryButtons.Length > 0)
             {
                 RefreshInventoryIcons();
                 return;
             }
+
+            m_InventoryButtonsBound = false;
 
             if ((m_BlockInventoryButtons == null || m_BlockInventoryButtons.Length == 0) && m_BlockInventoryGridRoot != null)
             {
