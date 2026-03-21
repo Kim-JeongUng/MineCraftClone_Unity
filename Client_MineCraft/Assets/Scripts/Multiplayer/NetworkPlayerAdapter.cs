@@ -107,7 +107,12 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            blockInteraction.AssignHandBlockUI(uiCanvasManager.CurrentHandBlockText, uiCanvasManager.HandBlockInput);
+            blockInteraction.AssignHandBlockUI(
+                uiCanvasManager.CurrentHandBlockText,
+                uiCanvasManager.HandBlockInput,
+                uiCanvasManager.HotbarRoot,
+                uiCanvasManager.BlockInventoryRoot,
+                uiCanvasManager.BlockInventoryGridRoot);
         }
 
         private void ApplyLocalState(bool local)

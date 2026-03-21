@@ -34,18 +34,44 @@ namespace Minecraft.PlayerControls
         private string m_BlockAtHead = null;
         private string m_BlockAtBody = null;
 
-        private void Start()
+        private void Awake()
         {
+            EnsureFluidMapInitialized();
+        }
+
+        private void OnEnable()
+        {
+            EnsureFluidMapInitialized();
+        }
+
+        private void EnsureFluidMapInitialized()
+        {
+            if (m_FluidMap != null)
+            {
+                return;
+            }
+
             m_FluidMap = new Dictionary<string, FluidInfo>();
+            if (m_Fluids == null)
+            {
+                return;
+            }
 
             for (int i = 0; i < m_Fluids.Length; i++)
             {
-                m_FluidMap.Add(m_Fluids[i].BlockName, m_Fluids[i]);
+                FluidInfo fluid = m_Fluids[i];
+                if (fluid == null || string.IsNullOrWhiteSpace(fluid.BlockName) || m_FluidMap.ContainsKey(fluid.BlockName))
+                {
+                    continue;
+                }
+
+                m_FluidMap.Add(fluid.BlockName, fluid);
             }
         }
 
         public void UpdateState(IAABBEntity entity, Transform camera, out float velocityMultiplier)
         {
+            EnsureFluidMapInitialized();
             if (entity?.World?.RWAccessor == null || camera == null || m_FluidMap == null)
             {
                 velocityMultiplier = 1f;
@@ -90,6 +116,11 @@ namespace Minecraft.PlayerControls
             int minY = Mathf.FloorToInt(aabb.Min.y);
             int maxY = Mathf.FloorToInt(aabb.Max.y);
 
+            if (m_Fluids == null || m_Fluids.Length == 0)
+            {
+                return 1f;
+            }
+
             BlockData blockData = null;
             int index = int.MaxValue;
 
@@ -125,7 +156,12 @@ namespace Minecraft.PlayerControls
                 return m_Fluids[index].VelocityMultiplier;
             }
 
-            return m_FluidMap.TryGetValue(m_BlockAtBody, out FluidInfo info) ? info.VelocityMultiplier : 1; // default is 1
+            if (string.IsNullOrWhiteSpace(m_BlockAtBody))
+            {
+                return 1f;
+            }
+
+            return m_FluidMap.TryGetValue(m_BlockAtBody, out FluidInfo info) ? info.VelocityMultiplier : 1f;
         }
     }
 }
