@@ -166,11 +166,20 @@ namespace Minecraft.Multiplayer
             ChunkPos chunkPos = ChunkPos.GetFromAny(blockChange.X, blockChange.Z);
             int localIndex = ToLocalBlockIndex(blockChange.X - chunkPos.X, blockChange.Y, blockChange.Z - chunkPos.Z);
             Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateServerChunkChanges(chunkPos);
-            chunkChanges[localIndex] = new BlockChangeState
+            BlockChangeState nextState = new BlockChangeState
             {
                 BlockId = blockChange.Block.ID,
                 Rotation = blockChange.Rotation
             };
+
+            if (chunkChanges.TryGetValue(localIndex, out BlockChangeState previousState) &&
+                previousState.BlockId == nextState.BlockId &&
+                previousState.Rotation.Equals(nextState.Rotation))
+            {
+                return;
+            }
+
+            chunkChanges[localIndex] = nextState;
 
             NetworkServer.SendToAll(new BlockChangedDeltaMessage
             {
@@ -245,7 +254,7 @@ namespace Minecraft.Multiplayer
             ChunkPos chunkPos = ChunkPos.Get(message.ChunkX, message.ChunkZ);
             Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateClientChunkChanges(chunkPos, clearExisting: true);
 
-            int count = message.LocalIndices != null ? message.LocalIndices.Length : 0;
+            int count = GetSafeSnapshotCount(message);
             for (int i = 0; i < count; i++)
             {
                 chunkChanges[message.LocalIndices[i]] = new BlockChangeState
@@ -260,6 +269,11 @@ namespace Minecraft.Multiplayer
 
         private void OnClientBlockChangedDeltaReceived(BlockChangedDeltaMessage message)
         {
+            if (!IsValidBlockCoordinates(message.X, message.Y, message.Z))
+            {
+                return;
+            }
+
             ChunkPos chunkPos = ChunkPos.GetFromAny(message.X, message.Z);
             int localIndex = ToLocalBlockIndex(message.X - chunkPos.X, message.Y, message.Z - chunkPos.Z);
 
@@ -332,6 +346,11 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
+            if (!IsValidBlockCoordinates(x, y, z))
+            {
+                return;
+            }
+
             if (blockId < 0 || blockId >= world.BlockDataTable.BlockCount)
             {
                 return;
@@ -350,6 +369,21 @@ namespace Minecraft.Multiplayer
             }
 
             world.RWAccessor.SetBlock(x, y, z, block, rotation, ModificationSource.InternalOrSystem);
+        }
+
+        private static int GetSafeSnapshotCount(ChunkBlockChangesSnapshotMessage message)
+        {
+            if (message.LocalIndices == null || message.BlockIds == null || message.Rotations == null)
+            {
+                return 0;
+            }
+
+            return Mathf.Min(message.LocalIndices.Length, message.BlockIds.Length, message.Rotations.Length);
+        }
+
+        private static bool IsValidBlockCoordinates(int x, int y, int z)
+        {
+            return y >= 0 && y < WorldConsts.ChunkHeight;
         }
 
         private static int ToLocalBlockIndex(int localX, int y, int localZ)
