@@ -158,7 +158,7 @@ namespace Minecraft.Multiplayer
 
         private void OnWorldBlockChanged(World.BlockChangedInfo blockChange)
         {
-            if (!NetworkServer.active || blockChange.Source == ModificationSource.InternalOrSystem || blockChange.Block == null)
+            if (!NetworkServer.active || blockChange.Block == null)
             {
                 return;
             }
