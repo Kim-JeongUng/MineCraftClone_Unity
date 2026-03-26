@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Minecraft.Configurations;
 using Minecraft.PhysicSystem;
@@ -243,6 +242,12 @@ namespace Minecraft.Multiplayer
                 return new Vector3(candidate.x, dryHeadroomY, candidate.z);
             }
 
+            if (TryFindDryHeadroomY(world, sampleX, sampleZ, m_MinSpawnHeight, ChunkHeight - 4, out int anyDryHeadroomY))
+            {
+                Debug.LogWarning($"[MP] SpawnService could not find nearby safe spawn. Using global dry headroom fallback. sample=({sampleX}, {sampleZ}), resolvedY={anyDryHeadroomY}");
+                return new Vector3(candidate.x, anyDryHeadroomY, candidate.z);
+            }
+
             Debug.LogWarning($"[MP] SpawnService could not validate dry headroom. Falling back to raw Y. sample=({sampleX}, {sampleZ}), fallbackY={fallbackY}");
             return new Vector3(candidate.x, fallbackY, candidate.z);
         }
@@ -319,8 +324,7 @@ namespace Minecraft.Multiplayer
             return block != null
                    && block.PhysicState == PhysicState.Solid
                    && !block.Flags.HasFlag(BlockFlags.IgnoreCollisions)
-                   && !block.Flags.HasFlag(BlockFlags.AlwaysInvisible)
-                   && string.Equals(block.InternalName, "grass", StringComparison.OrdinalIgnoreCase);
+                   && !block.Flags.HasFlag(BlockFlags.AlwaysInvisible);
         }
 
         private bool IsExposedToSky(World world, int x, int z, int startY)
