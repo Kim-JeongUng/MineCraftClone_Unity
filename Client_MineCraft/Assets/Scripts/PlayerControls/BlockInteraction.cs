@@ -10,9 +10,6 @@ using Minecraft.Rendering;
 using UnityEngine;
 using UnityEngine.UI;
 using Physics = Minecraft.PhysicSystem.Physics;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace Minecraft.PlayerControls
 {
@@ -84,7 +81,7 @@ namespace Minecraft.PlayerControls
         [NonSerialized] private bool m_InventoryButtonsBound;
 
         private readonly Dictionary<string, Sprite> m_BlockSpriteCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
-        private const string BlockSpriteFolderAssetPath = "Assets/Minecraft Default PBR Resources/Block Sprites";
+        private const string BlockSpriteResourcesPath = "Block Sprites";
 
         private static readonly Dictionary<string, string[]> s_BlockSpriteCandidates = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
@@ -394,10 +391,23 @@ namespace Minecraft.PlayerControls
                         continue;
                     }
 
-                    Image icon = child.GetComponent<Image>();
-                    if (icon == null && child.childCount > 0)
+                    Image icon = null;
+                    if (child.childCount > 0)
                     {
-                        icon = child.GetChild(0).GetComponent<Image>();
+                        Transform firstChild = child.GetChild(0);
+                        if (firstChild != null && string.Equals(firstChild.name, "Icon", StringComparison.OrdinalIgnoreCase))
+                        {
+                            icon = firstChild.GetComponent<Image>();
+                        }
+                    }
+
+                    if (icon == null)
+                    {
+                        Transform iconTransform = child.Find("Icon");
+                        if (iconTransform != null)
+                        {
+                            icon = iconTransform.GetComponent<Image>();
+                        }
                     }
 
                     bindings.Add(new InventoryButtonBinding
@@ -585,12 +595,18 @@ namespace Minecraft.PlayerControls
 
         private static Sprite LoadSpriteFromAssetFolder(string fileName)
         {
-#if UNITY_EDITOR
-            string assetPath = Path.Combine(BlockSpriteFolderAssetPath, fileName).Replace('\\', '/');
-            return AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
-#else
-            return null;
-#endif
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return null;
+            }
+
+            string resourceName = Path.GetFileNameWithoutExtension(fileName);
+            if (string.IsNullOrWhiteSpace(resourceName))
+            {
+                return null;
+            }
+
+            return Resources.Load<Sprite>($"{BlockSpriteResourcesPath}/{resourceName}");
         }
 
         private void DigBlock(Ray ray, IWorld world)
