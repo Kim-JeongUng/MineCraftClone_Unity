@@ -163,6 +163,11 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
+            if (blockChange.Source != ModificationSource.PlayerAction)
+            {
+                return;
+            }
+
             ChunkPos chunkPos = ChunkPos.GetFromAny(blockChange.X, blockChange.Z);
             int localIndex = ToLocalBlockIndex(blockChange.X - chunkPos.X, blockChange.Y, blockChange.Z - chunkPos.Z);
             Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateServerChunkChanges(chunkPos);
