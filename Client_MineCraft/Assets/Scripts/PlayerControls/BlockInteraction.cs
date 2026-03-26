@@ -95,6 +95,7 @@ namespace Minecraft.PlayerControls
             { "quartz_block_half", new[] { "quartz_block_top.png", "quartz_block_side.png" } },
             { "glass_block", new[] { "glass.tga" } },
             { "torch", new[] { "torch_on.tga" } },
+            { "tnt", new[] { "tnt_side.png" } },
             { "wall_torch", new[] { "torch_on.tga" } },
             { "cactus_DO_NOT_USE", new[] { "cactus_side.tga", "cactus_top.tga" } }
         };
