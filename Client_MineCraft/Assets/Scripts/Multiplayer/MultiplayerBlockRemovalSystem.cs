@@ -45,6 +45,10 @@ namespace Minecraft.Multiplayer
         private readonly Dictionary<ChunkPos, Dictionary<int, BlockChangeState>> m_ClientBlockChangesByChunk = new Dictionary<ChunkPos, Dictionary<int, BlockChangeState>>();
         private readonly Dictionary<ChunkPos, int> m_ServerChunkVersions = new Dictionary<ChunkPos, int>();
         private readonly Dictionary<ChunkPos, int> m_ClientChunkVersions = new Dictionary<ChunkPos, int>();
+        private readonly Dictionary<long, BlockChangedDeltaMessage> m_ServerPendingDeltas = new Dictionary<long, BlockChangedDeltaMessage>();
+        private readonly Queue<long> m_ServerPendingDeltaOrder = new Queue<long>();
+
+        private const int MaxServerDeltaSendsPerFrame = 256;
 
         private Coroutine m_WorldBindingRoutine;
         private World m_BoundWorld;
@@ -59,6 +63,8 @@ namespace Minecraft.Multiplayer
         {
             m_ServerBlockChangesByChunk.Clear();
             m_ServerChunkVersions.Clear();
+            m_ServerPendingDeltas.Clear();
+            m_ServerPendingDeltaOrder.Clear();
             UnbindWorldCallbacks();
         }
 
@@ -187,8 +193,7 @@ namespace Minecraft.Multiplayer
 
             chunkChanges[localIndex] = nextState;
             int nextVersion = GetNextServerChunkVersion(chunkPos);
-
-            NetworkServer.SendToAll(new BlockChangedDeltaMessage
+            EnqueueServerDelta(new BlockChangedDeltaMessage
             {
                 X = blockChange.X,
                 Y = blockChange.Y,
@@ -197,6 +202,28 @@ namespace Minecraft.Multiplayer
                 BlockId = blockChange.Block.ID,
                 Rotation = blockChange.Rotation
             });
+        }
+
+        private void LateUpdate()
+        {
+            if (!NetworkServer.active || m_ServerPendingDeltaOrder.Count == 0)
+            {
+                return;
+            }
+
+            int sendBudget = MaxServerDeltaSendsPerFrame;
+            while (sendBudget > 0 && m_ServerPendingDeltaOrder.Count > 0)
+            {
+                long key = m_ServerPendingDeltaOrder.Dequeue();
+                if (!m_ServerPendingDeltas.TryGetValue(key, out BlockChangedDeltaMessage delta))
+                {
+                    continue;
+                }
+
+                m_ServerPendingDeltas.Remove(key);
+                NetworkServer.SendToAll(delta);
+                sendBudget--;
+            }
         }
 
         private void OnChunkLoaded(Chunk chunk)
@@ -417,6 +444,30 @@ namespace Minecraft.Multiplayer
         private int GetClientChunkVersion(ChunkPos chunkPos)
         {
             return m_ClientChunkVersions.TryGetValue(chunkPos, out int version) ? version : 0;
+        }
+
+        private void EnqueueServerDelta(BlockChangedDeltaMessage message)
+        {
+            long key = ToWorldBlockKey(message.X, message.Y, message.Z);
+            if (m_ServerPendingDeltas.ContainsKey(key))
+            {
+                m_ServerPendingDeltas[key] = message;
+                return;
+            }
+
+            m_ServerPendingDeltas.Add(key, message);
+            m_ServerPendingDeltaOrder.Enqueue(key);
+        }
+
+        private static long ToWorldBlockKey(int x, int y, int z)
+        {
+            unchecked
+            {
+                long key = (uint)x;
+                key = (key << 20) ^ (uint)z;
+                key = (key << 10) ^ (uint)y;
+                return key;
+            }
         }
 
         private static bool IsValidBlockCoordinates(int x, int y, int z)
