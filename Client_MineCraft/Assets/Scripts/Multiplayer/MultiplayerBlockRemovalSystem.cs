@@ -19,6 +19,7 @@ namespace Minecraft.Multiplayer
         {
             public int ChunkX;
             public int ChunkZ;
+            public int ChunkVersion;
             public int[] LocalIndices;
             public int[] BlockIds;
             public Quaternion[] Rotations;
@@ -29,6 +30,7 @@ namespace Minecraft.Multiplayer
             public int X;
             public int Y;
             public int Z;
+            public int ChunkVersion;
             public int BlockId;
             public Quaternion Rotation;
         }
@@ -41,6 +43,8 @@ namespace Minecraft.Multiplayer
 
         private readonly Dictionary<ChunkPos, Dictionary<int, BlockChangeState>> m_ServerBlockChangesByChunk = new Dictionary<ChunkPos, Dictionary<int, BlockChangeState>>();
         private readonly Dictionary<ChunkPos, Dictionary<int, BlockChangeState>> m_ClientBlockChangesByChunk = new Dictionary<ChunkPos, Dictionary<int, BlockChangeState>>();
+        private readonly Dictionary<ChunkPos, int> m_ServerChunkVersions = new Dictionary<ChunkPos, int>();
+        private readonly Dictionary<ChunkPos, int> m_ClientChunkVersions = new Dictionary<ChunkPos, int>();
 
         private Coroutine m_WorldBindingRoutine;
         private World m_BoundWorld;
@@ -54,6 +58,7 @@ namespace Minecraft.Multiplayer
         public void StopServer()
         {
             m_ServerBlockChangesByChunk.Clear();
+            m_ServerChunkVersions.Clear();
             UnbindWorldCallbacks();
         }
 
@@ -67,6 +72,7 @@ namespace Minecraft.Multiplayer
         public void StopClient()
         {
             m_ClientBlockChangesByChunk.Clear();
+            m_ClientChunkVersions.Clear();
             UnbindWorldCallbacks();
         }
 
@@ -163,11 +169,6 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            if (blockChange.Source != ModificationSource.PlayerAction)
-            {
-                return;
-            }
-
             ChunkPos chunkPos = ChunkPos.GetFromAny(blockChange.X, blockChange.Z);
             int localIndex = ToLocalBlockIndex(blockChange.X - chunkPos.X, blockChange.Y, blockChange.Z - chunkPos.Z);
             Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateServerChunkChanges(chunkPos);
@@ -185,12 +186,14 @@ namespace Minecraft.Multiplayer
             }
 
             chunkChanges[localIndex] = nextState;
+            int nextVersion = GetNextServerChunkVersion(chunkPos);
 
             NetworkServer.SendToAll(new BlockChangedDeltaMessage
             {
                 X = blockChange.X,
                 Y = blockChange.Y,
                 Z = blockChange.Z,
+                ChunkVersion = nextVersion,
                 BlockId = blockChange.Block.ID,
                 Rotation = blockChange.Rotation
             });
@@ -231,7 +234,8 @@ namespace Minecraft.Multiplayer
             ChunkBlockChangesSnapshotMessage snapshot = new ChunkBlockChangesSnapshotMessage
             {
                 ChunkX = chunkPos.X,
-                ChunkZ = chunkPos.Z
+                ChunkZ = chunkPos.Z,
+                ChunkVersion = GetServerChunkVersion(chunkPos)
             };
 
             if (m_ServerBlockChangesByChunk.TryGetValue(chunkPos, out Dictionary<int, BlockChangeState> chunkChanges) && chunkChanges.Count > 0)
@@ -257,6 +261,12 @@ namespace Minecraft.Multiplayer
         private void OnClientChunkSnapshotReceived(ChunkBlockChangesSnapshotMessage message)
         {
             ChunkPos chunkPos = ChunkPos.Get(message.ChunkX, message.ChunkZ);
+            if (message.ChunkVersion < GetClientChunkVersion(chunkPos))
+            {
+                return;
+            }
+
+            m_ClientChunkVersions[chunkPos] = message.ChunkVersion;
             Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateClientChunkChanges(chunkPos, clearExisting: true);
 
             int count = GetSafeSnapshotCount(message);
@@ -280,6 +290,12 @@ namespace Minecraft.Multiplayer
             }
 
             ChunkPos chunkPos = ChunkPos.GetFromAny(message.X, message.Z);
+            if (message.ChunkVersion < GetClientChunkVersion(chunkPos))
+            {
+                return;
+            }
+
+            m_ClientChunkVersions[chunkPos] = message.ChunkVersion;
             int localIndex = ToLocalBlockIndex(message.X - chunkPos.X, message.Y, message.Z - chunkPos.Z);
 
             Dictionary<int, BlockChangeState> chunkChanges = GetOrCreateClientChunkChanges(chunkPos, clearExisting: false);
@@ -384,6 +400,23 @@ namespace Minecraft.Multiplayer
             }
 
             return Mathf.Min(message.LocalIndices.Length, message.BlockIds.Length, message.Rotations.Length);
+        }
+
+        private int GetNextServerChunkVersion(ChunkPos chunkPos)
+        {
+            int nextVersion = GetServerChunkVersion(chunkPos) + 1;
+            m_ServerChunkVersions[chunkPos] = nextVersion;
+            return nextVersion;
+        }
+
+        private int GetServerChunkVersion(ChunkPos chunkPos)
+        {
+            return m_ServerChunkVersions.TryGetValue(chunkPos, out int version) ? version : 0;
+        }
+
+        private int GetClientChunkVersion(ChunkPos chunkPos)
+        {
+            return m_ClientChunkVersions.TryGetValue(chunkPos, out int version) ? version : 0;
         }
 
         private static bool IsValidBlockCoordinates(int x, int y, int z)
