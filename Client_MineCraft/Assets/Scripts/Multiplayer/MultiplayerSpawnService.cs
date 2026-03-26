@@ -289,7 +289,8 @@ namespace Minecraft.Multiplayer
             return block != null
                    && block.PhysicState == PhysicState.Solid
                    && !block.Flags.HasFlag(BlockFlags.IgnoreCollisions)
-                   && !block.Flags.HasFlag(BlockFlags.AlwaysInvisible);
+                   && !block.Flags.HasFlag(BlockFlags.AlwaysInvisible)
+                   && string.Equals(block.InternalName, "grass", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsEmptyForSpawn(BlockData block)
