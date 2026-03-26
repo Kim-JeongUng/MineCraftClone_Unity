@@ -3,7 +3,6 @@ local util = require "xlua.util"
 
 tnt = create_block_behaviour()
 local unityTime = CS.UnityEngine.Time
-local unityColor = CS.UnityEngine.Color
 local playerModification = CS.Minecraft.ModificationSource.PlayerAction
 local quaternionIdentity = CS.UnityEngine.Quaternion.identity
 local ignoreExplosionsFlag = CS.Minecraft.Configurations.BlockFlags.IgnoreExplosions
@@ -17,9 +16,8 @@ function tnt:init(world, block)
 
     self.water_name = "water"
     self.lava_name = "lava"
-    self.mass = 1
-    self.gravity_multiplier = 1
     self.air_block_data = world.BlockDataTable:GetBlock("air")
+    self.pending_explosions = {}
 end
 
 function tnt:is_lava(x, y, z, accessor)
@@ -43,8 +41,43 @@ function tnt:place(x, y, z)
 end
 
 function tnt:click(x, y, z)
-    self.world.EntityManager:CreateBlockEntityAt(x, y, z, self:get_block_data())
-    self.world.RWAccessor:SetBlock(x, y, z, self.air_block_data, quaternionIdentity, playerModification)
+    local key = string.format("%d:%d:%d", x, y, z)
+
+    if self.pending_explosions[key] then
+        return
+    end
+
+    self.pending_explosions[key] = true
+    self.world:StartCoroutine(util.cs_generator(function()
+        local time = 0
+        local effectAsset = assetManager:LoadAsset(explosionEffectAssetName, typeof(CS.UnityEngine.GameObject))
+        local accessor = self.world.RWAccessor
+
+        while time < waitTime or not effectAsset.IsDone do
+            time = time + unityTime.deltaTime
+            coroutine.yield(nil)
+        end
+
+        local block = accessor:GetBlock(x, y, z)
+
+        -- 이미 다른 폭발로 제거된 경우 중복 처리하지 않음
+        if block and block.InternalName == self.InternalName then
+            -- 물속 폭발은 블록을 파괴하지 않음
+            if block.InternalName ~= self.water_name then
+                self:explode(x, y, z, explodeRadius, accessor)
+            end
+
+            accessor:SetBlock(x, y, z, self.air_block_data, quaternionIdentity, playerModification)
+        end
+
+        local effect = CS.UnityEngine.Object.Instantiate(effectAsset.Asset)
+        effect.transform.position = CS.UnityEngine.Vector3(x, y, z)
+
+        local particle = CS.Minecraft.Lua.LuaUtility.GetParticleSystem(effect)
+        particle:Play()
+
+        self.pending_explosions[key] = nil
+    end))
 end
 
 function tnt:explode(center_x, center_y, center_z, radius, accessor)
@@ -68,59 +101,11 @@ function tnt:explode(center_x, center_y, center_z, radius, accessor)
     end end end
 end
 
-function tnt:start_fuse(entity, context)
-    if context.started then
-        return
-    end
-
-    context.started = true
-    entity:StartCoroutine(util.cs_generator(function()
-        local time = 0
-        local effectAsset = context.explosionEffectAsset
-
-        while time < waitTime or not effectAsset.IsDone do
-            time = time + unityTime.deltaTime
-            local t = (math.cos(time * math.pi * 1.5) + 1) * 0.5
-            local color = unityColor.Lerp(unityColor.grey, unityColor.white, t)
-            entity.MaterialProperty:SetColor("_MainColor", color)
-            coroutine.yield(nil)
-        end
-
-        local pos = entity.Position
-        local accessor = entity.World.RWAccessor
-        local block = accessor:GetBlock(pos.x, pos.y, pos.z)
-
-        -- 물속 폭발은 블록을 파괴하지 않음
-        if block and block.InternalName ~= self.water_name then
-            self:explode(pos.x, pos.y, pos.z, explodeRadius, accessor)
-        end
-
-        local effect = CS.UnityEngine.Object.Instantiate(context.explosionEffectAsset.Asset)
-        effect.transform.position = pos
-
-        local particle = CS.Minecraft.Lua.LuaUtility.GetParticleSystem(effect)
-        particle:Play()
-
-        entity.EnableRendering = false
-        coroutine.yield(nil)
-
-        -- 여기서는 리소스를 삭제하지 않음(나중에 다시 사용할 수 있음)
-        -- assetManager:UnloadAsset(context.explosionEffectAsset)
-        self.world.EntityManager:DestroyEntity(entity)
-    end))
-end
-
 function tnt:entity_init(entity, context)
-    entity.Mass = self.mass
-    entity.GravityMultiplier = self.gravity_multiplier
-
-    -- 사전 로드
-    context.explosionEffectAsset = assetManager:LoadAsset(explosionEffectAssetName, typeof(CS.UnityEngine.GameObject))
-
-    -- 일부 클라이언트에서 충돌 콜백이 누락되더라도 점화 연출이 보이도록 즉시 시작
-    self:start_fuse(entity, context)
+    -- TNT는 블록 기반 타이머로 동작하고 블록 엔티티는 사용하지 않음
+    self.world.EntityManager:DestroyEntity(entity)
 end
 
 function tnt:entity_on_collisions(entity, flags, context)
-    self:start_fuse(entity, context)
+    -- no-op
 end
