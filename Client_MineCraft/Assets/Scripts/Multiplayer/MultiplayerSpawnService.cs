@@ -213,9 +213,9 @@ namespace Minecraft.Multiplayer
                 return new Vector3(candidate.x, fallbackY, candidate.z);
             }
 
-            if (TryFindNearestSafeSpawnPosition(world, sampleX, sampleZ, out int safeX, out int safeY, out int safeZ))
+            if (TryFindNearestSafeSpawnPosition(world, sampleX, sampleZ, out int safeX, out int nearestSafeY, out int safeZ))
             {
-                return new Vector3(safeX, safeY, safeZ);
+                return new Vector3(safeX, nearestSafeY, safeZ);
             }
 
             if (TryFindHighestSafeSpawnY(world, sampleX, sampleZ, out int surfaceSafeY))
