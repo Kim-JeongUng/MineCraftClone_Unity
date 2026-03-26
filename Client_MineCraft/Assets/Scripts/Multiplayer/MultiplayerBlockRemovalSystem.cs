@@ -44,6 +44,7 @@ namespace Minecraft.Multiplayer
 
         private Coroutine m_WorldBindingRoutine;
         private World m_BoundWorld;
+        private int m_NetworkApplyDepth;
 
         public void StartServer()
         {
@@ -54,6 +55,7 @@ namespace Minecraft.Multiplayer
         public void StopServer()
         {
             m_ServerBlockChangesByChunk.Clear();
+            m_NetworkApplyDepth = 0;
             UnbindWorldCallbacks();
         }
 
@@ -67,6 +69,7 @@ namespace Minecraft.Multiplayer
         public void StopClient()
         {
             m_ClientBlockChangesByChunk.Clear();
+            m_NetworkApplyDepth = 0;
             UnbindWorldCallbacks();
         }
 
@@ -158,7 +161,7 @@ namespace Minecraft.Multiplayer
 
         private void OnWorldBlockChanged(World.BlockChangedInfo blockChange)
         {
-            if (!NetworkServer.active || blockChange.Block == null)
+            if (!NetworkServer.active || blockChange.Block == null || m_NetworkApplyDepth > 0)
             {
                 return;
             }
@@ -368,7 +371,15 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            world.RWAccessor.SetBlock(x, y, z, block, rotation, ModificationSource.InternalOrSystem);
+            m_NetworkApplyDepth++;
+            try
+            {
+                world.RWAccessor.SetBlock(x, y, z, block, rotation, ModificationSource.InternalOrSystem);
+            }
+            finally
+            {
+                m_NetworkApplyDepth--;
+            }
         }
 
         private static int GetSafeSnapshotCount(ChunkBlockChangesSnapshotMessage message)
