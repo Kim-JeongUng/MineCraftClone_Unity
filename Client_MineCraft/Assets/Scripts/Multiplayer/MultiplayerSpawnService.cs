@@ -278,7 +278,7 @@ namespace Minecraft.Multiplayer
 
                     int x = centerX + dx;
                     int z = centerZ + dz;
-                    if (!TryFindHighestSafeSpawnY(world, x, z, out int candidateY))
+                    if (!TryFindHighestSafeGrassSpawnY(world, x, z, out int candidateY))
                     {
                         continue;
                     }
@@ -311,6 +311,21 @@ namespace Minecraft.Multiplayer
             for (int y = ChunkHeight - 4; y >= Mathf.Max(1, m_MinSpawnHeight); y--)
             {
                 if (HasStandingRoom(world, x, z, y))
+                {
+                    safeY = y;
+                    return true;
+                }
+            }
+
+            safeY = default;
+            return false;
+        }
+
+        private bool TryFindHighestSafeGrassSpawnY(World world, int x, int z, out int safeY)
+        {
+            for (int y = ChunkHeight - 4; y >= Mathf.Max(1, m_MinSpawnHeight); y--)
+            {
+                if (HasStandingRoomOnGrass(world, x, z, y))
                 {
                     safeY = y;
                     return true;
@@ -366,6 +381,20 @@ namespace Minecraft.Multiplayer
                    && IsExposedToSky(world, x, z, spawnY + 2);
         }
 
+        private bool HasStandingRoomOnGrass(World world, int x, int z, int spawnY)
+        {
+            BlockData groundBlock = world.RWAccessor.GetBlock(x, spawnY - 1, z);
+            if (!IsGrassBlock(groundBlock))
+            {
+                return false;
+            }
+
+            return IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY, z))
+                   && IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY + 1, z))
+                   && IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY + 2, z))
+                   && IsExposedToSky(world, x, z, spawnY + 2);
+        }
+
         private bool HasDryHeadroom(World world, int x, int z, int spawnY)
         {
             return IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY, z))
@@ -379,6 +408,12 @@ namespace Minecraft.Multiplayer
                    && block.PhysicState == PhysicState.Solid
                    && !block.Flags.HasFlag(BlockFlags.IgnoreCollisions)
                    && !block.Flags.HasFlag(BlockFlags.AlwaysInvisible);
+        }
+
+        private static bool IsGrassBlock(BlockData block)
+        {
+            return IsGroundBlock(block)
+                   && string.Equals(block.InternalName, "grass", System.StringComparison.OrdinalIgnoreCase);
         }
 
         private bool IsExposedToSky(World world, int x, int z, int startY)
