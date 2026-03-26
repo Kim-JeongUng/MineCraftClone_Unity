@@ -224,7 +224,7 @@ namespace Minecraft.Multiplayer
             }
 
             Vector3 spawnPosition = default;
-            while (true)
+            while (Time.unscaledTime < deadline)
             {
                 if (conn == null || !NetworkServer.connections.ContainsKey(connectionId) || conn.identity != null)
                 {
@@ -239,6 +239,14 @@ namespace Minecraft.Multiplayer
                 }
 
                 yield return null;
+            }
+
+            if (spawnPosition == default)
+            {
+                Debug.LogWarning($"[MP] AddPlayer aborted because no grass spawn could be resolved in time. connId={connectionId}, reserved={reservation.Position}");
+                RemovePendingSpawnRecord(connectionId);
+                ReleaseSpawnReservation(conn);
+                yield break;
             }
 
             if (playerPrefab == null)

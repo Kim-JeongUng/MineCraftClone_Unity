@@ -32,6 +32,7 @@ namespace Minecraft.Multiplayer
         [SerializeField] [Min(1)] private int m_ClearanceAboveGround = 2;
         [SerializeField] [Min(1)] private int m_MinSpawnHeight = 4;
         [SerializeField] [Range(0, 64)] private int m_HorizontalLandSearchRadius = 12;
+        [SerializeField] [Range(16, 1024)] private int m_MaxHorizontalLandSearchRadius = 256;
         [SerializeField] private bool m_EnableVerboseSpawnDebug = true;
         [SerializeField] private bool m_UseFirstResolvedSpawnAsAnchor = true;
 
@@ -311,19 +312,26 @@ namespace Minecraft.Multiplayer
                 return false;
             }
 
-            if (TryFindNearestSafeSpawnPosition(world, sampleX, sampleZ, out int safeX, out int safeY, out int safeZ))
+            int searchRadius = Mathf.Max(m_HorizontalLandSearchRadius, m_MaxHorizontalLandSearchRadius);
+            if (TryFindNearestSafeSpawnPosition(world, sampleX, sampleZ, searchRadius, out int safeX, out int safeY, out int safeZ))
             {
                 resolved = new Vector3(safeX, safeY, safeZ);
                 return true;
             }
 
+            LogSpawnDebug($"No grass spawn found up to max radius. center=({sampleX}, {sampleZ}), maxRadius={searchRadius}");
             resolved = default;
             return false;
         }
 
         private bool TryFindNearestSafeSpawnPosition(World world, int centerX, int centerZ, out int safeX, out int safeY, out int safeZ)
         {
-            int radius = Mathf.Max(0, m_HorizontalLandSearchRadius);
+            return TryFindNearestSafeSpawnPosition(world, centerX, centerZ, m_HorizontalLandSearchRadius, out safeX, out safeY, out safeZ);
+        }
+
+        private bool TryFindNearestSafeSpawnPosition(World world, int centerX, int centerZ, int radius, out int safeX, out int safeY, out int safeZ)
+        {
+            radius = Mathf.Max(0, radius);
             int bestDistanceSq = int.MaxValue;
             safeX = default;
             safeY = default;
@@ -341,7 +349,7 @@ namespace Minecraft.Multiplayer
 
                     int x = centerX + dx;
                     int z = centerZ + dz;
-                    if (!TryFindHighestSafeGrassSpawnY(world, x, z, out int candidateY))
+                    if (!TryFindTopVisibleGrassSpawnY(world, x, z, out int candidateY))
                     {
                         continue;
                     }
@@ -374,6 +382,39 @@ namespace Minecraft.Multiplayer
             return false;
         }
 
+        private bool TryFindTopVisibleGrassSpawnY(World world, int x, int z, out int safeY)
+        {
+            int topVisibleY = world.RWAccessor.GetTopVisibleBlockY(x, z, int.MinValue);
+            if (topVisibleY == int.MinValue)
+            {
+                safeY = default;
+                return false;
+            }
+
+            BlockData topBlock = world.RWAccessor.GetBlock(x, topVisibleY, z);
+            if (!IsGrassBlock(topBlock))
+            {
+                safeY = default;
+                return false;
+            }
+
+            int spawnY = topVisibleY + 1;
+            if (spawnY < 1 || spawnY > ChunkHeight - 4)
+            {
+                safeY = default;
+                return false;
+            }
+
+            if (!HasStandingRoomOnGrass(world, x, z, spawnY))
+            {
+                safeY = default;
+                return false;
+            }
+
+            safeY = spawnY;
+            return true;
+        }
+
         private void LogSpawnDebug(string message)
         {
             if (!m_EnableVerboseSpawnDebug)
@@ -389,21 +430,6 @@ namespace Minecraft.Multiplayer
             for (int y = ChunkHeight - 4; y >= Mathf.Max(1, m_MinSpawnHeight); y--)
             {
                 if (HasStandingRoom(world, x, z, y))
-                {
-                    safeY = y;
-                    return true;
-                }
-            }
-
-            safeY = default;
-            return false;
-        }
-
-        private bool TryFindHighestSafeGrassSpawnY(World world, int x, int z, out int safeY)
-        {
-            for (int y = ChunkHeight - 4; y >= Mathf.Max(1, m_MinSpawnHeight); y--)
-            {
-                if (HasStandingRoomOnGrass(world, x, z, y))
                 {
                     safeY = y;
                     return true;
