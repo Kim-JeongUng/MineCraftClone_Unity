@@ -303,9 +303,9 @@ namespace Minecraft.Multiplayer
 
             return IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY, z))
                    && IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY + 1, z))
-                   && IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY + 2, z));
+                   && IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY + 2, z))
+                   && IsExposedToSky(world, x, z, spawnY + 2);
         }
-
 
         private bool HasDryHeadroom(World world, int x, int z, int spawnY)
         {
@@ -323,11 +323,31 @@ namespace Minecraft.Multiplayer
                    && string.Equals(block.InternalName, "grass", StringComparison.OrdinalIgnoreCase);
         }
 
+        private bool IsExposedToSky(World world, int x, int z, int startY)
+        {
+            for (int y = Mathf.Clamp(startY, 1, ChunkHeight - 1); y < ChunkHeight; y++)
+            {
+                if (!IsSkyPassable(world.RWAccessor.GetBlock(x, y, z)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool IsSkyPassable(BlockData block)
+        {
+            return block == null
+                   || (block.Flags.HasFlag(BlockFlags.IgnoreCollisions) && block.PhysicState != PhysicState.Fluid)
+                   || block.Flags.HasFlag(BlockFlags.AlwaysInvisible) && block.PhysicState != PhysicState.Fluid;
+        }
+
         private static bool IsEmptyForSpawn(BlockData block)
         {
             return block == null
-                   || block.Flags.HasFlag(BlockFlags.AlwaysInvisible)
-                   || (block.Flags.HasFlag(BlockFlags.IgnoreCollisions) && block.PhysicState != PhysicState.Fluid);
+                   || (block.Flags.HasFlag(BlockFlags.IgnoreCollisions) && block.PhysicState != PhysicState.Fluid)
+                   || block.Flags.HasFlag(BlockFlags.AlwaysInvisible) && block.PhysicState != PhysicState.Fluid;
         }
     }
 }
