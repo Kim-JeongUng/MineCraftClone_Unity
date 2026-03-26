@@ -18,10 +18,15 @@ namespace Minecraft.Multiplayer
         private const int RemotePlayerLayer = 9;
         private const int LocalPlayerLayer = 10;
         private const float MoveAnimationSyncThreshold = 0.05f;
+        private const float MoveAnimationSyncIntervalSeconds = 0.08f;
+        private const float MoveAnimationQuantizationStep = 0.02f;
 
         private bool m_HasBoundLocalWorldReferences;
         private float m_LastSyncedMoveAnimationSpeed = -1f;
         private bool m_LastSyncedDigAnimationState;
+        private float m_LastMoveAnimationSyncTime = float.NegativeInfinity;
+        private bool m_HasPendingMoveAnimationSync;
+        private float m_PendingMoveAnimationSpeed;
 
         private bool IsOwnedLocally => isLocalPlayer || isOwned;
 
@@ -190,12 +195,44 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            if (Mathf.Abs(m_LastSyncedMoveAnimationSpeed - moveSpeed) < MoveAnimationSyncThreshold)
+            float quantizedMoveSpeed = QuantizeMoveSpeed(moveSpeed);
+            if (Mathf.Abs(m_LastSyncedMoveAnimationSpeed - quantizedMoveSpeed) < MoveAnimationSyncThreshold)
             {
                 return;
             }
 
+            bool forceImmediateSend = quantizedMoveSpeed <= 0.001f || m_LastSyncedMoveAnimationSpeed <= 0.001f;
+            float elapsed = Time.unscaledTime - m_LastMoveAnimationSyncTime;
+            if (!forceImmediateSend && elapsed < MoveAnimationSyncIntervalSeconds)
+            {
+                m_HasPendingMoveAnimationSync = true;
+                m_PendingMoveAnimationSpeed = quantizedMoveSpeed;
+                return;
+            }
+
+            SendMoveAnimationSync(quantizedMoveSpeed);
+        }
+
+        private void Update()
+        {
+            if (!m_HasPendingMoveAnimationSync || !GameModeContext.IsMultiplayer || !IsOwnedLocally)
+            {
+                return;
+            }
+
+            if (Time.unscaledTime - m_LastMoveAnimationSyncTime < MoveAnimationSyncIntervalSeconds)
+            {
+                return;
+            }
+
+            SendMoveAnimationSync(m_PendingMoveAnimationSpeed);
+            m_HasPendingMoveAnimationSync = false;
+        }
+
+        private void SendMoveAnimationSync(float moveSpeed)
+        {
             m_LastSyncedMoveAnimationSpeed = moveSpeed;
+            m_LastMoveAnimationSyncTime = Time.unscaledTime;
 
             if (isServer)
             {
@@ -242,13 +279,19 @@ namespace Minecraft.Multiplayer
             TryClickBlockOnServer(x, y, z);
         }
 
-        [Command]
+        private static float QuantizeMoveSpeed(float moveSpeed)
+        {
+            float clampedSpeed = Mathf.Clamp01(moveSpeed);
+            return Mathf.Round(clampedSpeed / MoveAnimationQuantizationStep) * MoveAnimationQuantizationStep;
+        }
+
+        [Command(channel = Channels.Unreliable)]
         private void CmdSetMoveAnimation(float moveSpeed)
         {
             RpcSetMoveAnimation(moveSpeed);
         }
 
-        [ClientRpc(includeOwner = false)]
+        [ClientRpc(includeOwner = false, channel = Channels.Unreliable)]
         private void RpcSetMoveAnimation(float moveSpeed)
         {
             if (m_PlayerEntity != null)
