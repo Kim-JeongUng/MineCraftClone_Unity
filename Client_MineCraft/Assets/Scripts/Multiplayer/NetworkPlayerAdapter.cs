@@ -259,7 +259,7 @@ namespace Minecraft.Multiplayer
 
 
         [ClientRpc]
-        private void RpcClickBlock(int x, int y, int z)
+        private void RpcClickBlock(int x, int y, int z, int blockId)
         {
             if (isServer)
             {
@@ -272,7 +272,7 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            BlockData block = world.RWAccessor.GetBlock(x, y, z);
+            BlockData block = world.BlockDataTable?.GetBlock(blockId);
             if (block == null)
             {
                 return;
@@ -305,13 +305,25 @@ namespace Minecraft.Multiplayer
                 return false;
             }
 
+            World world = World.Active as World;
+            if (world?.RWAccessor == null)
+            {
+                return false;
+            }
+
+            BlockData block = world.RWAccessor.GetBlock(x, y, z);
+            if (block == null)
+            {
+                return false;
+            }
+
             MyNetworkManager manager = NetworkManager.singleton as MyNetworkManager;
             if (manager == null || !manager.TryClickBlockOnServer(x, y, z))
             {
                 return false;
             }
 
-            RpcClickBlock(x, y, z);
+            RpcClickBlock(x, y, z, block.ID);
             return true;
         }
 
