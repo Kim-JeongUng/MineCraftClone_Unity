@@ -31,6 +31,7 @@ namespace Minecraft.Multiplayer
         [SerializeField] private Transform m_FallbackSpawnPoint;
         [SerializeField] [Min(1)] private int m_ClearanceAboveGround = 2;
         [SerializeField] [Min(1)] private int m_MinSpawnHeight = 4;
+        [SerializeField] [Range(0, 64)] private int m_HorizontalLandSearchRadius = 12;
         [SerializeField] private bool m_UseFirstResolvedSpawnAsAnchor = true;
 
         private readonly Dictionary<int, SpawnReservation> m_Reservations = new Dictionary<int, SpawnReservation>();
@@ -212,6 +213,11 @@ namespace Minecraft.Multiplayer
                 return new Vector3(candidate.x, fallbackY, candidate.z);
             }
 
+            if (TryFindNearestSafeSpawnPosition(world, sampleX, sampleZ, out int safeX, out int safeY, out int safeZ))
+            {
+                return new Vector3(safeX, safeY, safeZ);
+            }
+
             if (TryFindHighestSafeSpawnY(world, sampleX, sampleZ, out int surfaceSafeY))
             {
                 return new Vector3(candidate.x, surfaceSafeY, candidate.z);
@@ -250,6 +256,54 @@ namespace Minecraft.Multiplayer
 
             Debug.LogWarning($"[MP] SpawnService could not validate dry headroom. Falling back to raw Y. sample=({sampleX}, {sampleZ}), fallbackY={fallbackY}");
             return new Vector3(candidate.x, fallbackY, candidate.z);
+        }
+
+        private bool TryFindNearestSafeSpawnPosition(World world, int centerX, int centerZ, out int safeX, out int safeY, out int safeZ)
+        {
+            int radius = Mathf.Max(0, m_HorizontalLandSearchRadius);
+            int bestDistanceSq = int.MaxValue;
+            safeX = default;
+            safeY = default;
+            safeZ = default;
+
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int distanceSq = (dx * dx) + (dz * dz);
+                    if (distanceSq > bestDistanceSq)
+                    {
+                        continue;
+                    }
+
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (!TryFindHighestSafeSpawnY(world, x, z, out int candidateY))
+                    {
+                        continue;
+                    }
+
+                    if (distanceSq < bestDistanceSq)
+                    {
+                        bestDistanceSq = distanceSq;
+                        safeX = x;
+                        safeY = candidateY;
+                        safeZ = z;
+                    }
+                }
+            }
+
+            if (bestDistanceSq != int.MaxValue)
+            {
+                if (bestDistanceSq > 0)
+                {
+                    Debug.Log($"[MP] SpawnService moved spawn to nearest land. center=({centerX}, {centerZ}), resolved=({safeX}, {safeY}, {safeZ}), radius={radius}, distance={Mathf.Sqrt(bestDistanceSq):F2}");
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         private bool TryFindHighestSafeSpawnY(World world, int x, int z, out int safeY)
