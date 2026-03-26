@@ -237,7 +237,13 @@ namespace Minecraft.Multiplayer
                 return new Vector3(candidate.x, fallbackSafeY, candidate.z);
             }
 
-            Debug.LogWarning($"[MP] SpawnService could not validate headroom. Falling back to raw Y. sample=({sampleX}, {sampleZ}), fallbackY={fallbackY}");
+            if (TryFindDryHeadroomY(world, sampleX, sampleZ, fallbackStartY, ChunkHeight - 4, out int dryHeadroomY))
+            {
+                Debug.LogWarning($"[MP] SpawnService could not find grass ground. Using dry headroom fallback. sample=({sampleX}, {sampleZ}), fallbackStartY={fallbackStartY}, resolvedY={dryHeadroomY}");
+                return new Vector3(candidate.x, dryHeadroomY, candidate.z);
+            }
+
+            Debug.LogWarning($"[MP] SpawnService could not validate dry headroom. Falling back to raw Y. sample=({sampleX}, {sampleZ}), fallbackY={fallbackY}");
             return new Vector3(candidate.x, fallbackY, candidate.z);
         }
 
@@ -271,6 +277,22 @@ namespace Minecraft.Multiplayer
             return false;
         }
 
+
+        private bool TryFindDryHeadroomY(World world, int x, int z, int minY, int maxY, out int safeY)
+        {
+            for (int y = Mathf.Clamp(minY, 1, ChunkHeight - 4); y <= Mathf.Clamp(maxY, 1, ChunkHeight - 4); y++)
+            {
+                if (HasDryHeadroom(world, x, z, y))
+                {
+                    safeY = y;
+                    return true;
+                }
+            }
+
+            safeY = default;
+            return false;
+        }
+
         private bool HasStandingRoom(World world, int x, int z, int spawnY)
         {
             BlockData groundBlock = world.RWAccessor.GetBlock(x, spawnY - 1, z);
@@ -279,6 +301,14 @@ namespace Minecraft.Multiplayer
                 return false;
             }
 
+            return IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY, z))
+                   && IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY + 1, z))
+                   && IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY + 2, z));
+        }
+
+
+        private bool HasDryHeadroom(World world, int x, int z, int spawnY)
+        {
             return IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY, z))
                    && IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY + 1, z))
                    && IsEmptyForSpawn(world.RWAccessor.GetBlock(x, spawnY + 2, z));
