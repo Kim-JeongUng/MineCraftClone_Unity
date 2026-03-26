@@ -22,12 +22,13 @@ namespace Minecraft.Rendering
         public void AddBlock(Vector3Int pos, Vector3Int renderOffset, BlockData block, IWorldRAccessor accessor)
         {
             Quaternion rotation = accessor.GetBlockRotation(pos.x, pos.y, pos.z, Quaternion.identity);
+            Quaternion meshRotation = block.PhysicState == PhysicState.Fluid ? Quaternion.identity : rotation;
             BlockMesh mesh = accessor.World.BlockDataTable.GetMesh(block.Mesh.Value);
 
             for (int i = 0; i < mesh.Faces.Length; i++)
             {
                 BlockMesh.FaceData face = mesh.Faces[i];
-                BlockFace faceDir = RotateFace(face.Face, rotation);
+                BlockFace faceDir = RotateFace(face.Face, meshRotation);
 
                 if (EnableFaceClipping)
                 {
@@ -52,7 +53,8 @@ namespace Minecraft.Rendering
                 for (int j = 0; j < face.Vertices.Length; j++)
                 {
                     BlockVertexData vertex = face.Vertices[j];
-                    vertex.Position = MathUtility.RotatePoint(vertex.Position, rotation, mesh.Pivot);
+                    vertex.Position = MathUtility.RotatePoint(vertex.Position, meshRotation, mesh.Pivot);
+                    AdjustFluidVertexHeight(block, rotation, ref vertex);
 
                     float emission = block.GetEmissionValue();
                     Vector2 ambient = LightingUtility.AmbientOcclusion(pos, faceDir, vertex.CornerInFace, accessor, !EnableAmbientOcclusion);
@@ -69,6 +71,19 @@ namespace Minecraft.Rendering
                     });
                 }
             }
+        }
+
+        private static void AdjustFluidVertexHeight(BlockData block, Quaternion rotation, ref BlockVertexData vertex)
+        {
+            if (block.PhysicState != PhysicState.Fluid || vertex.Position.y <= 0.999f)
+            {
+                return;
+            }
+
+            float encoded = rotation.eulerAngles.y / 10f;
+            int level = Mathf.Clamp(Mathf.RoundToInt(encoded), 1, 7);
+            float height = Mathf.Clamp01(level / 7f);
+            vertex.Position.y = height;
         }
 
         protected bool ClipFace(Vector3Int pos, BlockData block, BlockFace face, IWorldRAccessor accessor)
