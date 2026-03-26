@@ -46,6 +46,28 @@ namespace Minecraft.Multiplayer
             return true;
         }
 
+
+        public bool RequestClickBlock(Vector3Int position)
+        {
+            if (!GameModeContext.IsMultiplayer)
+            {
+                return false;
+            }
+
+            if (!isOwned && !isLocalPlayer)
+            {
+                return false;
+            }
+
+            if (isServer)
+            {
+                return TryClickBlockOnServer(position.x, position.y, position.z);
+            }
+
+            CmdClickBlock(position.x, position.y, position.z);
+            return true;
+        }
+
         public override void OnStartClient()
         {
             base.OnStartClient();
@@ -213,6 +235,13 @@ namespace Minecraft.Multiplayer
             TrySetBlockOnServer(x, y, z, blockId, rotation);
         }
 
+
+        [Command]
+        private void CmdClickBlock(int x, int y, int z)
+        {
+            TryClickBlockOnServer(x, y, z);
+        }
+
         [Command]
         private void CmdSetMoveAnimation(float moveSpeed)
         {
@@ -228,6 +257,30 @@ namespace Minecraft.Multiplayer
             }
         }
 
+
+        [ClientRpc]
+        private void RpcClickBlock(int x, int y, int z)
+        {
+            if (isServer)
+            {
+                return;
+            }
+
+            World world = World.Active as World;
+            if (world?.RWAccessor == null)
+            {
+                return;
+            }
+
+            BlockData block = world.RWAccessor.GetBlock(x, y, z);
+            if (block == null)
+            {
+                return;
+            }
+
+            block.Click(world, x, y, z);
+        }
+
         [Command]
         private void CmdSetDigAnimationState(bool active)
         {
@@ -241,6 +294,25 @@ namespace Minecraft.Multiplayer
             {
                 m_PlayerEntity.ApplyRemoteDigAnimationState(active);
             }
+        }
+
+
+        [Server]
+        private bool TryClickBlockOnServer(int x, int y, int z)
+        {
+            if (y < 0 || y >= WorldConsts.ChunkHeight)
+            {
+                return false;
+            }
+
+            MyNetworkManager manager = NetworkManager.singleton as MyNetworkManager;
+            if (manager == null || !manager.TryClickBlockOnServer(x, y, z))
+            {
+                return false;
+            }
+
+            RpcClickBlock(x, y, z);
+            return true;
         }
 
         [Server]

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 using System.Security.Cryptography;
+using Minecraft.Configurations;
 using Minecraft;
 using Mirror;
 using kcp2k;
@@ -284,6 +285,29 @@ namespace Minecraft.Multiplayer
         {
             EnsureBlockRemovalSystemReference();
             return m_BlockRemovalSystem != null && m_BlockRemovalSystem.TrySetBlockOnServer(x, y, z, blockId, rotation);
+        }
+
+        public bool TryClickBlockOnServer(int x, int y, int z)
+        {
+            if (y < 0 || y >= WorldConsts.ChunkHeight)
+            {
+                return false;
+            }
+
+            World world = World.Active as World;
+            if (world?.RWAccessor == null)
+            {
+                return false;
+            }
+
+            BlockData block = world.RWAccessor.GetBlock(x, y, z);
+            if (block == null)
+            {
+                return false;
+            }
+
+            block.Click(world, x, y, z);
+            return true;
         }
 
         private void RemovePendingSpawnRecord(int connectionId)

@@ -678,7 +678,17 @@ namespace Minecraft.PlayerControls
                     BlockData block = world.RWAccessor.GetBlock(hit.Position.x, hit.Position.y, hit.Position.z);
                     if ((hit.Position == m_ClickedPos) && (Time.time - m_ClickTime <= MaxClickSpacing))
                     {
-                        block.Click(world, hit.Position.x, hit.Position.y, hit.Position.z);
+                        if (GameModeContext.IsMultiplayer)
+                        {
+                            if (m_NetworkPlayerAdapter == null || !m_NetworkPlayerAdapter.RequestClickBlock(hit.Position))
+                            {
+                                Debug.LogWarning($"[MP] Failed to send block click request for {hit.Position}.");
+                            }
+                        }
+                        else
+                        {
+                            block.Click(world, hit.Position.x, hit.Position.y, hit.Position.z);
+                        }
                     }
 
                     m_ClickedPos = Vector3Int.down;
