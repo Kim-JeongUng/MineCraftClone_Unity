@@ -300,30 +300,6 @@ namespace Minecraft.Multiplayer
             }
         }
 
-
-        [ClientRpc]
-        private void RpcClickBlock(int x, int y, int z, int blockId)
-        {
-            if (isServer)
-            {
-                return;
-            }
-
-            World world = World.Active as World;
-            if (world?.RWAccessor == null)
-            {
-                return;
-            }
-
-            BlockData block = world.BlockDataTable?.GetBlock(blockId);
-            if (block == null)
-            {
-                return;
-            }
-
-            block.Click(world, x, y, z);
-        }
-
         [Command]
         private void CmdSetDigAnimationState(bool active)
         {
@@ -354,19 +330,12 @@ namespace Minecraft.Multiplayer
                 return false;
             }
 
-            BlockData block = world.RWAccessor.GetBlock(x, y, z);
-            if (block == null)
-            {
-                return false;
-            }
-
             MyNetworkManager manager = NetworkManager.singleton as MyNetworkManager;
             if (manager == null || !manager.TryClickBlockOnServer(x, y, z))
             {
                 return false;
             }
 
-            RpcClickBlock(x, y, z, block.ID);
             return true;
         }
 
