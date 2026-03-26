@@ -7,6 +7,10 @@ namespace Minecraft.Rendering
 {
     public class BlockMeshBuilder<TIndex> : MeshBuilder<BlockMeshVertexData, TIndex> where TIndex : unmanaged
     {
+        private const int MaxFluidLevel = 7;
+        private const float FluidHeightUnit = 1f / 8f;
+        private const float FullFluidHeight = 1f;
+
         public bool WriteBlockWSPosToVertexData { get; set; }
 
         public bool EnableAmbientOcclusion { get; set; }
@@ -22,6 +26,10 @@ namespace Minecraft.Rendering
         public void AddBlock(Vector3Int pos, Vector3Int renderOffset, BlockData block, IWorldRAccessor accessor)
         {
             Quaternion rotation = accessor.GetBlockRotation(pos.x, pos.y, pos.z, Quaternion.identity);
+            bool isFluid = block.PhysicState == PhysicState.Fluid;
+            int fluidLevel = isFluid ? DecodeFluidLevel(rotation) : 0;
+            float fluidHeight = isFluid ? GetFluidHeight(fluidLevel) : FullFluidHeight;
+
             BlockMesh mesh = accessor.World.BlockDataTable.GetMesh(block.Mesh.Value);
 
             for (int i = 0; i < mesh.Faces.Length; i++)
@@ -52,7 +60,15 @@ namespace Minecraft.Rendering
                 for (int j = 0; j < face.Vertices.Length; j++)
                 {
                     BlockVertexData vertex = face.Vertices[j];
-                    vertex.Position = MathUtility.RotatePoint(vertex.Position, rotation, mesh.Pivot);
+                    if (isFluid)
+                    {
+                        if (vertex.Position.y > 0.99f)
+                        {
+                            vertex.Position.y = fluidHeight;
+                        }
+                    }
+
+                    vertex.Position = MathUtility.RotatePoint(vertex.Position, isFluid ? Quaternion.identity : rotation, mesh.Pivot);
 
                     float emission = block.GetEmissionValue();
                     Vector2 ambient = LightingUtility.AmbientOcclusion(pos, faceDir, vertex.CornerInFace, accessor, !EnableAmbientOcclusion);
@@ -145,6 +161,17 @@ namespace Minecraft.Rendering
                 { x: 0.0f, y: 0.0f, z: -1.0f } => BlockFace.NegativeZ,
                 _ => throw new InvalidOperationException($"Invalid Rotation: {rotation.eulerAngles}.")
             };
+        }
+
+        private static int DecodeFluidLevel(Quaternion data)
+        {
+            int level = Mathf.RoundToInt(data.x / FluidHeightUnit);
+            return Mathf.Clamp(level, 0, MaxFluidLevel);
+        }
+
+        private static float GetFluidHeight(int fluidLevel)
+        {
+            return Mathf.Clamp01(1f - (fluidLevel * FluidHeightUnit));
         }
 
         public static BlockMeshBuilder<TIndex> CreateBlockEntityMeshBuilder(bool ambientOcclusion)
