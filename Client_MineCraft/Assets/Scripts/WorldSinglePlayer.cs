@@ -117,6 +117,13 @@ namespace Minecraft
 
         private void TickBlocks()
         {
+            if (GameModeContext.IsMultiplayer && GameModeContext.IsClient && !GameModeContext.IsServer)
+            {
+                // In multiplayer, the server is authoritative for block behaviours (e.g. gravity).
+                // Client-side ticking here can create client-only sand/gravel divergence.
+                return;
+            }
+
             int count = m_BlocksToTickQueue.Count;
 
             if (count > MaxTickBlockCountPerFrame)

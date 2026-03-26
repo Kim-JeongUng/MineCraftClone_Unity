@@ -163,10 +163,8 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            if (blockChange.Source != ModificationSource.PlayerAction)
-            {
-                return;
-            }
+            // Keep server authoritative for every world mutation (player action + system/gravity).
+            // Filtering only PlayerAction causes client-only desync for chained updates such as sand/gravel gravity.
 
             ChunkPos chunkPos = ChunkPos.GetFromAny(blockChange.X, blockChange.Z);
             int localIndex = ToLocalBlockIndex(blockChange.X - chunkPos.X, blockChange.Y, blockChange.Z - chunkPos.Z);
