@@ -68,15 +68,7 @@ function tnt:explode(center_x, center_y, center_z, radius, accessor)
     end end end
 end
 
-function tnt:entity_init(entity, context)
-    entity.Mass = self.mass
-    entity.GravityMultiplier = self.gravity_multiplier
-
-    -- 사전 로드
-    context.explosionEffectAsset = assetManager:LoadAsset(explosionEffectAssetName, typeof(CS.UnityEngine.GameObject))
-end
-
-function tnt:entity_on_collisions(entity, flags, context)
+function tnt:start_fuse(entity, context)
     if context.started then
         return
     end
@@ -116,4 +108,19 @@ function tnt:entity_on_collisions(entity, flags, context)
         -- assetManager:UnloadAsset(context.explosionEffectAsset)
         self.world.EntityManager:DestroyEntity(entity)
     end))
+end
+
+function tnt:entity_init(entity, context)
+    entity.Mass = self.mass
+    entity.GravityMultiplier = self.gravity_multiplier
+
+    -- 사전 로드
+    context.explosionEffectAsset = assetManager:LoadAsset(explosionEffectAssetName, typeof(CS.UnityEngine.GameObject))
+
+    -- 일부 클라이언트에서 충돌 콜백이 누락되더라도 점화 연출이 보이도록 즉시 시작
+    self:start_fuse(entity, context)
+end
+
+function tnt:entity_on_collisions(entity, flags, context)
+    self:start_fuse(entity, context)
 end
