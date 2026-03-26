@@ -32,6 +32,7 @@ namespace Minecraft.Multiplayer
         [SerializeField] [Min(1)] private int m_ClearanceAboveGround = 2;
         [SerializeField] [Min(1)] private int m_MinSpawnHeight = 4;
         [SerializeField] [Range(0, 64)] private int m_HorizontalLandSearchRadius = 12;
+        [SerializeField] private bool m_EnableVerboseSpawnDebug = true;
         [SerializeField] private bool m_UseFirstResolvedSpawnAsAnchor = true;
 
         private readonly Dictionary<int, SpawnReservation> m_Reservations = new Dictionary<int, SpawnReservation>();
@@ -208,18 +209,26 @@ namespace Minecraft.Multiplayer
             int sampleZ = Mathf.RoundToInt(candidate.z);
             float fallbackY = Mathf.Max(candidate.y, m_MinSpawnHeight) + m_ClearanceAboveGround;
 
+            LogSpawnDebug($"ResolveSafeSpawnHeight start. candidate={candidate}, sample=({sampleX}, {sampleZ}), fallbackY={fallbackY}, radius={m_HorizontalLandSearchRadius}");
+
             if (world == null || !world.Initialized || world.RWAccessor == null)
             {
+                LogSpawnDebug("World or RWAccessor is not ready. Returning fallback Y without terrain validation.");
                 return new Vector3(candidate.x, fallbackY, candidate.z);
             }
 
             if (TryFindNearestSafeSpawnPosition(world, sampleX, sampleZ, out int safeX, out int nearestSafeY, out int safeZ))
             {
+                BlockData resolvedGround = world.RWAccessor.GetBlock(safeX, nearestSafeY - 1, safeZ);
+                LogSpawnDebug($"Resolved nearest grass spawn. resolved=({safeX}, {nearestSafeY}, {safeZ}), ground={resolvedGround?.InternalName ?? "null"}");
                 return new Vector3(safeX, nearestSafeY, safeZ);
             }
 
+            LogSpawnDebug("Nearest grass search failed. Falling back to legacy vertical safe search on original column.");
             if (TryFindHighestSafeSpawnY(world, sampleX, sampleZ, out int surfaceSafeY))
             {
+                BlockData surfaceGround = world.RWAccessor.GetBlock(sampleX, surfaceSafeY - 1, sampleZ);
+                LogSpawnDebug($"Legacy vertical safe search succeeded. resolved=({sampleX}, {surfaceSafeY}, {sampleZ}), ground={surfaceGround?.InternalName ?? "null"}");
                 return new Vector3(candidate.x, surfaceSafeY, candidate.z);
             }
 
@@ -231,6 +240,8 @@ namespace Minecraft.Multiplayer
 
                 if (TryFindSafeSpawnY(world, sampleX, sampleZ, preferredSpawnY, maxSearchY, out int safeY))
                 {
+                    BlockData preferredGround = world.RWAccessor.GetBlock(sampleX, safeY - 1, sampleZ);
+                    LogSpawnDebug($"TopVisible fallback succeeded. resolved=({sampleX}, {safeY}, {sampleZ}), ground={preferredGround?.InternalName ?? "null"}");
                     return new Vector3(candidate.x, safeY, candidate.z);
                 }
             }
@@ -239,22 +250,29 @@ namespace Minecraft.Multiplayer
             if (TryFindSafeSpawnY(world, sampleX, sampleZ, fallbackStartY, fallbackStartY + 6, out int fallbackSafeY))
             {
                 Debug.LogWarning($"[MP] SpawnService used fallback spawn height search. sample=({sampleX}, {sampleZ}), fallbackStartY={fallbackStartY}, resolvedY={fallbackSafeY}");
+                BlockData fallbackGround = world.RWAccessor.GetBlock(sampleX, fallbackSafeY - 1, sampleZ);
+                LogSpawnDebug($"Fallback spawn height search picked ground={fallbackGround?.InternalName ?? "null"}");
                 return new Vector3(candidate.x, fallbackSafeY, candidate.z);
             }
 
             if (TryFindDryHeadroomY(world, sampleX, sampleZ, fallbackStartY, ChunkHeight - 4, out int dryHeadroomY))
             {
                 Debug.LogWarning($"[MP] SpawnService could not find grass ground. Using dry headroom fallback. sample=({sampleX}, {sampleZ}), fallbackStartY={fallbackStartY}, resolvedY={dryHeadroomY}");
+                BlockData dryHeadroomGround = world.RWAccessor.GetBlock(sampleX, dryHeadroomY - 1, sampleZ);
+                LogSpawnDebug($"Dry headroom fallback picked ground={dryHeadroomGround?.InternalName ?? "null"}");
                 return new Vector3(candidate.x, dryHeadroomY, candidate.z);
             }
 
             if (TryFindDryHeadroomY(world, sampleX, sampleZ, m_MinSpawnHeight, ChunkHeight - 4, out int anyDryHeadroomY))
             {
                 Debug.LogWarning($"[MP] SpawnService could not find nearby safe spawn. Using global dry headroom fallback. sample=({sampleX}, {sampleZ}), resolvedY={anyDryHeadroomY}");
+                BlockData globalDryGround = world.RWAccessor.GetBlock(sampleX, anyDryHeadroomY - 1, sampleZ);
+                LogSpawnDebug($"Global dry headroom fallback picked ground={globalDryGround?.InternalName ?? "null"}");
                 return new Vector3(candidate.x, anyDryHeadroomY, candidate.z);
             }
 
             Debug.LogWarning($"[MP] SpawnService could not validate dry headroom. Falling back to raw Y. sample=({sampleX}, {sampleZ}), fallbackY={fallbackY}");
+            LogSpawnDebug("All validation paths failed. Returning raw fallback Y.");
             return new Vector3(candidate.x, fallbackY, candidate.z);
         }
 
@@ -299,11 +317,26 @@ namespace Minecraft.Multiplayer
                 {
                     Debug.Log($"[MP] SpawnService moved spawn to nearest land. center=({centerX}, {centerZ}), resolved=({safeX}, {safeY}, {safeZ}), radius={radius}, distance={Mathf.Sqrt(bestDistanceSq):F2}");
                 }
+                else
+                {
+                    LogSpawnDebug($"Center column already valid grass spawn. center=({centerX}, {centerZ}), y={safeY}");
+                }
 
                 return true;
             }
 
+            LogSpawnDebug($"Could not find grass spawn in radius. center=({centerX}, {centerZ}), radius={radius}");
             return false;
+        }
+
+        private void LogSpawnDebug(string message)
+        {
+            if (!m_EnableVerboseSpawnDebug)
+            {
+                return;
+            }
+
+            Debug.Log($"[MP][SpawnDebug] {message}");
         }
 
         private bool TryFindHighestSafeSpawnY(World world, int x, int z, out int safeY)
