@@ -159,6 +159,30 @@ namespace Minecraft.Multiplayer
         }
 
         [Server]
+        public bool TryFinalizeGrassSpawn(NetworkConnectionToClient conn, World world, out Vector3 finalSpawn)
+        {
+            if (!m_Reservations.TryGetValue(conn.connectionId, out SpawnReservation reservation))
+            {
+                reservation = ReserveSpawn(conn, world);
+            }
+
+            if (!TryResolveNearestGrassSpawn(reservation.Position, world, out finalSpawn))
+            {
+                return false;
+            }
+
+            if (!m_HasAnchor && m_UseFirstResolvedSpawnAsAnchor)
+            {
+                SetAnchorPosition(finalSpawn);
+            }
+
+            Vector3 reference = AnchorPosition;
+            Vector3 delta = finalSpawn - reference;
+            Debug.Log($"[MP] SpawnService finalized grass spawn. connId={conn.connectionId}, index={reservation.SpawnIndex}, reference={reference}, offsetXZ=({reservation.Offset.x}, {reservation.Offset.y}), final={finalSpawn}, delta={delta}, chunk={ChunkPos.GetFromAny(finalSpawn.x, finalSpawn.z)}");
+            return true;
+        }
+
+        [Server]
         public void ResetReservations()
         {
             m_Reservations.Clear();
@@ -274,6 +298,27 @@ namespace Minecraft.Multiplayer
             Debug.LogWarning($"[MP] SpawnService could not validate dry headroom. Falling back to raw Y. sample=({sampleX}, {sampleZ}), fallbackY={fallbackY}");
             LogSpawnDebug("All validation paths failed. Returning raw fallback Y.");
             return new Vector3(candidate.x, fallbackY, candidate.z);
+        }
+
+        private bool TryResolveNearestGrassSpawn(Vector3 candidate, World world, out Vector3 resolved)
+        {
+            int sampleX = Mathf.RoundToInt(candidate.x);
+            int sampleZ = Mathf.RoundToInt(candidate.z);
+
+            if (world == null || !world.Initialized || world.RWAccessor == null)
+            {
+                resolved = default;
+                return false;
+            }
+
+            if (TryFindNearestSafeSpawnPosition(world, sampleX, sampleZ, out int safeX, out int safeY, out int safeZ))
+            {
+                resolved = new Vector3(safeX, safeY, safeZ);
+                return true;
+            }
+
+            resolved = default;
+            return false;
         }
 
         private bool TryFindNearestSafeSpawnPosition(World world, int centerX, int centerZ, out int safeX, out int safeY, out int safeZ)

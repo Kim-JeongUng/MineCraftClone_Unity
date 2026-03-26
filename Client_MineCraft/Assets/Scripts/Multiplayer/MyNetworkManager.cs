@@ -223,6 +223,24 @@ namespace Minecraft.Multiplayer
                 yield break;
             }
 
+            Vector3 spawnPosition = default;
+            while (true)
+            {
+                if (conn == null || !NetworkServer.connections.ContainsKey(connectionId) || conn.identity != null)
+                {
+                    RemovePendingSpawnRecord(connectionId);
+                    ReleaseSpawnReservation(conn);
+                    yield break;
+                }
+
+                if (m_SpawnService.TryFinalizeGrassSpawn(conn, world, out spawnPosition))
+                {
+                    break;
+                }
+
+                yield return null;
+            }
+
             if (playerPrefab == null)
             {
                 Debug.LogWarning($"[MP] AddPlayer aborted because playerPrefab is missing. connId={connectionId}");
@@ -230,8 +248,6 @@ namespace Minecraft.Multiplayer
                 ReleaseSpawnReservation(conn);
                 yield break;
             }
-
-            Vector3 spawnPosition = m_SpawnService.FinalizeSpawn(conn, world);
             Quaternion spawnRotation = m_SpawnService.SpawnRotation;
             GameObject player = Instantiate(playerPrefab, spawnPosition, spawnRotation);
             bool added = NetworkServer.AddPlayerForConnection(conn, player);
