@@ -8,6 +8,8 @@ local playerModification = CS.Minecraft.ModificationSource.PlayerAction
 local quaternionIdentity = CS.UnityEngine.Quaternion.identity
 local ignoreExplosionsFlag = CS.Minecraft.Configurations.BlockFlags.IgnoreExplosions
 local assetManager = CS.Minecraft.Assets.AssetManager.Instance
+local multiplayerBlockRemovalSystem = CS.Minecraft.Multiplayer.MultiplayerBlockRemovalSystem
+local gameModeContext = CS.Minecraft.Multiplayer.GameModeContext
 local explosionEffectAssetName = "Assets/Minecraft Default PBR Resources/Effects/Explosion Effect.prefab"
 local waitTime = 3
 local explodeRadius = 5
@@ -43,6 +45,11 @@ function tnt:place(x, y, z)
 end
 
 function tnt:click(x, y, z)
+    local system = multiplayerBlockRemovalSystem.Instance
+    if system then
+        system:NotifyTntFuseStarted(x, y, z, self.ID)
+    end
+
     self.world.EntityManager:CreateBlockEntityAt(x, y, z, self:get_block_data())
     self.world.RWAccessor:SetBlock(x, y, z, self.air_block_data, quaternionIdentity, playerModification)
 end
@@ -99,7 +106,8 @@ function tnt:entity_on_collisions(entity, flags, context)
         local block = accessor:GetBlock(pos.x, pos.y, pos.z)
 
         -- 물속 폭발은 블록을 파괴하지 않음
-        if block and block.InternalName ~= self.water_name then
+        -- 멀티플레이 클라이언트(비서버)는 시각 효과만 재생하고 블록 파괴는 서버 동기화 결과를 따른다
+        if block and block.InternalName ~= self.water_name and (not gameModeContext.IsClient or gameModeContext.IsServer) then
             self:explode(pos.x, pos.y, pos.z, explodeRadius, accessor)
         end
 

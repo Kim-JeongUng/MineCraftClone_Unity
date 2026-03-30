@@ -9,6 +9,14 @@ namespace Minecraft.Multiplayer
     [DisallowMultipleComponent]
     public class MultiplayerBlockRemovalSystem : MonoBehaviour
     {
+        public struct TntFuseStartedMessage : NetworkMessage
+        {
+            public int X;
+            public int Y;
+            public int Z;
+            public int BlockId;
+        }
+
         public struct RequestChunkBlockChangesMessage : NetworkMessage
         {
             public int ChunkX;
@@ -45,6 +53,21 @@ namespace Minecraft.Multiplayer
         private Coroutine m_WorldBindingRoutine;
         private World m_BoundWorld;
 
+        public static MultiplayerBlockRemovalSystem Instance { get; private set; }
+
+        private void Awake()
+        {
+            Instance = this;
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
+
         public void StartServer()
         {
             NetworkServer.RegisterHandler<RequestChunkBlockChangesMessage>(OnServerRequestChunkBlockChanges, false);
@@ -61,6 +84,7 @@ namespace Minecraft.Multiplayer
         {
             NetworkClient.RegisterHandler<ChunkBlockChangesSnapshotMessage>(OnClientChunkSnapshotReceived, false);
             NetworkClient.RegisterHandler<BlockChangedDeltaMessage>(OnClientBlockChangedDeltaReceived, false);
+            NetworkClient.RegisterHandler<TntFuseStartedMessage>(OnClientTntFuseStarted, false);
             BindWorldCallbacks();
         }
 
@@ -95,6 +119,22 @@ namespace Minecraft.Multiplayer
             }
 
             return world.RWAccessor.SetBlock(x, y, z, targetBlock, rotation, ModificationSource.PlayerAction);
+        }
+
+        public void NotifyTntFuseStarted(int x, int y, int z, int blockId)
+        {
+            if (!NetworkServer.active)
+            {
+                return;
+            }
+
+            NetworkServer.SendToAll(new TntFuseStartedMessage
+            {
+                X = x,
+                Y = y,
+                Z = z,
+                BlockId = blockId
+            });
         }
 
         private void BindWorldCallbacks()
@@ -271,6 +311,33 @@ namespace Minecraft.Multiplayer
             };
 
             ApplyBlockChangeIfLoaded(message.X, message.Y, message.Z, message.BlockId, message.Rotation);
+        }
+
+        private void OnClientTntFuseStarted(TntFuseStartedMessage message)
+        {
+            if (NetworkServer.active)
+            {
+                return;
+            }
+
+            World world = World.Active as World;
+            if (world == null || !world.Initialized || world.BlockDataTable == null || world.EntityManager == null)
+            {
+                return;
+            }
+
+            if (message.BlockId < 0 || message.BlockId >= world.BlockDataTable.BlockCount)
+            {
+                return;
+            }
+
+            BlockData block = world.BlockDataTable.GetBlock(message.BlockId);
+            if (block == null)
+            {
+                return;
+            }
+
+            world.EntityManager.CreateBlockEntityAt(message.X, message.Y, message.Z, block);
         }
 
         private Dictionary<int, BlockChangeState> GetOrCreateServerChunkChanges(ChunkPos chunkPos)
