@@ -3,6 +3,7 @@ local util = require "xlua.util"
 
 tnt = create_block_behaviour()
 local unityTime = CS.UnityEngine.Time
+local unityColor = CS.UnityEngine.Color
 local playerModification = CS.Minecraft.ModificationSource.PlayerAction
 local quaternionIdentity = CS.UnityEngine.Quaternion.identity
 local ignoreExplosionsFlag = CS.Minecraft.Configurations.BlockFlags.IgnoreExplosions
@@ -10,13 +11,18 @@ local assetManager = CS.Minecraft.Assets.AssetManager.Instance
 local explosionEffectAssetName = "Assets/Minecraft Default PBR Resources/Effects/Explosion Effect.prefab"
 local waitTime = 3
 local explodeRadius = 5
-local blinkInterval = 0.15
+
+local function to_key(x, y, z)
+    return string.format("%d:%d:%d", x, y, z)
+end
 
 function tnt:init(world, block)
     tnt.base.init(self, world, block)
 
     self.water_name = "water"
     self.lava_name = "lava"
+    self.mass = 1
+    self.gravity_multiplier = 1
     self.air_block_data = world.BlockDataTable:GetBlock("air")
     self.pending_explosions = {}
 end
@@ -42,69 +48,14 @@ function tnt:place(x, y, z)
 end
 
 function tnt:click(x, y, z)
-    local key = string.format("%d:%d:%d", x, y, z)
-
+    local key = to_key(x, y, z)
     if self.pending_explosions[key] then
         return
     end
 
     self.pending_explosions[key] = true
-    self.world:StartCoroutine(util.cs_generator(function()
-        local elapsed = 0
-        local blinkElapsed = 0
-        local showBlock = true
-        local effectAsset = assetManager:LoadAsset(explosionEffectAssetName, typeof(CS.UnityEngine.GameObject))
-        local accessor = self.world.RWAccessor
-
-        while elapsed < waitTime do
-            local current = accessor:GetBlock(x, y, z)
-            if not current or (current.InternalName ~= self.InternalName and current.InternalName ~= self.air_block_data.InternalName) then
-                self.pending_explosions[key] = nil
-                return
-            end
-
-            elapsed = elapsed + unityTime.deltaTime
-            blinkElapsed = blinkElapsed + unityTime.deltaTime
-
-            if blinkElapsed >= blinkInterval then
-                blinkElapsed = 0
-                showBlock = not showBlock
-                accessor:SetBlock(
-                    x,
-                    y,
-                    z,
-                    showBlock and self:get_block_data() or self.air_block_data,
-                    quaternionIdentity,
-                    playerModification)
-            end
-
-            coroutine.yield(nil)
-        end
-
-        local block = accessor:GetBlock(x, y, z)
-
-        -- 이미 다른 폭발로 제거된 경우 중복 처리하지 않음
-        if block and (block.InternalName == self.InternalName or block.InternalName == self.air_block_data.InternalName) then
-            accessor:SetBlock(x, y, z, self:get_block_data(), quaternionIdentity, playerModification)
-
-            -- 물속 폭발은 블록을 파괴하지 않음
-            if block.InternalName ~= self.water_name then
-                self:explode(x, y, z, explodeRadius, accessor)
-            end
-
-            accessor:SetBlock(x, y, z, self.air_block_data, quaternionIdentity, playerModification)
-        end
-
-        if effectAsset.IsDone and effectAsset.Asset then
-            local effect = CS.UnityEngine.Object.Instantiate(effectAsset.Asset)
-            effect.transform.position = CS.UnityEngine.Vector3(x, y, z)
-
-            local particle = CS.Minecraft.Lua.LuaUtility.GetParticleSystem(effect)
-            particle:Play()
-        end
-
-        self.pending_explosions[key] = nil
-    end))
+    self.world.EntityManager:CreateBlockEntityAt(x, y, z, self:get_block_data())
+    self.world.RWAccessor:SetBlock(x, y, z, self.air_block_data, quaternionIdentity, playerModification)
 end
 
 function tnt:explode(center_x, center_y, center_z, radius, accessor)
@@ -129,8 +80,46 @@ function tnt:explode(center_x, center_y, center_z, radius, accessor)
 end
 
 function tnt:entity_init(entity, context)
-    -- TNT는 블록 기반 타이머로 동작하고 블록 엔티티는 사용하지 않음
-    self.world.EntityManager:DestroyEntity(entity)
+    entity.Mass = self.mass
+    entity.GravityMultiplier = self.gravity_multiplier
+
+    local pos = entity.Position
+    context.key = to_key(pos.x, pos.y, pos.z)
+    context.explosionEffectAsset = assetManager:LoadAsset(explosionEffectAssetName, typeof(CS.UnityEngine.GameObject))
+
+    entity:StartCoroutine(util.cs_generator(function()
+        local time = 0
+        local effectAsset = context.explosionEffectAsset
+
+        while time < waitTime do
+            time = time + unityTime.deltaTime
+            local t = (math.cos(time * math.pi * 1.5) + 1) * 0.5
+            local color = unityColor.Lerp(unityColor.grey, unityColor.white, t)
+            entity.MaterialProperty:SetColor("_MainColor", color)
+            coroutine.yield(nil)
+        end
+
+        local now = entity.Position
+        local accessor = entity.World.RWAccessor
+
+        -- 물속 폭발은 블록을 파괴하지 않음
+        local block = accessor:GetBlock(now.x, now.y, now.z)
+        if not block or block.InternalName ~= self.water_name then
+            self:explode(now.x, now.y, now.z, explodeRadius, accessor)
+        end
+
+        if effectAsset.IsDone and effectAsset.Asset then
+            local effect = CS.UnityEngine.Object.Instantiate(effectAsset.Asset)
+            effect.transform.position = now
+            local particle = CS.Minecraft.Lua.LuaUtility.GetParticleSystem(effect)
+            particle:Play()
+        end
+
+        self.pending_explosions[context.key] = nil
+        entity.EnableRendering = false
+        coroutine.yield(nil)
+        self.world.EntityManager:DestroyEntity(entity)
+    end))
 end
 
 function tnt:entity_on_collisions(entity, flags, context)
