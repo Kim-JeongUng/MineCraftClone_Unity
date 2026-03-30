@@ -122,6 +122,10 @@ function tnt:entity_on_collisions(entity, flags, context)
 
         -- 여기서는 리소스를 삭제하지 않음(나중에 다시 사용할 수 있음)
         -- assetManager:UnloadAsset(context.explosionEffectAsset)
+        local system = multiplayerBlockRemovalSystem.Instance
+        if system then
+            system:NotifyTntFuseFinished(pos.x, pos.y, pos.z)
+        end
         self.world.EntityManager:DestroyEntity(entity)
     end))
 end

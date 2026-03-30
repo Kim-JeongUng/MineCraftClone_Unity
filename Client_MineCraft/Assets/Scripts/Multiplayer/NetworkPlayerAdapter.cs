@@ -46,6 +46,27 @@ namespace Minecraft.Multiplayer
             return true;
         }
 
+        public bool RequestIgniteTnt(Vector3Int position)
+        {
+            if (!GameModeContext.IsMultiplayer)
+            {
+                return false;
+            }
+
+            if (!isOwned && !isLocalPlayer)
+            {
+                return false;
+            }
+
+            if (isServer)
+            {
+                return TryIgniteTntOnServer(position.x, position.y, position.z);
+            }
+
+            CmdIgniteTnt(position.x, position.y, position.z);
+            return true;
+        }
+
         public override void OnStartClient()
         {
             base.OnStartClient();
@@ -214,6 +235,12 @@ namespace Minecraft.Multiplayer
         }
 
         [Command]
+        private void CmdIgniteTnt(int x, int y, int z)
+        {
+            TryIgniteTntOnServer(x, y, z);
+        }
+
+        [Command]
         private void CmdSetMoveAnimation(float moveSpeed)
         {
             RpcSetMoveAnimation(moveSpeed);
@@ -253,6 +280,18 @@ namespace Minecraft.Multiplayer
 
             MyNetworkManager manager = NetworkManager.singleton as MyNetworkManager;
             return manager != null && manager.TrySetBlockOnServer(x, y, z, blockId, rotation);
+        }
+
+        [Server]
+        private bool TryIgniteTntOnServer(int x, int y, int z)
+        {
+            if (y < 0 || y >= WorldConsts.ChunkHeight)
+            {
+                return false;
+            }
+
+            MyNetworkManager manager = NetworkManager.singleton as MyNetworkManager;
+            return manager != null && manager.TryIgniteTntOnServer(x, y, z);
         }
     }
 }

@@ -286,6 +286,12 @@ namespace Minecraft.Multiplayer
             return m_BlockRemovalSystem != null && m_BlockRemovalSystem.TrySetBlockOnServer(x, y, z, blockId, rotation);
         }
 
+        public bool TryIgniteTntOnServer(int x, int y, int z)
+        {
+            EnsureBlockRemovalSystemReference();
+            return m_BlockRemovalSystem != null && m_BlockRemovalSystem.TryIgniteTntOnServer(x, y, z);
+        }
+
         private void RemovePendingSpawnRecord(int connectionId)
         {
             if (connectionId >= 0)

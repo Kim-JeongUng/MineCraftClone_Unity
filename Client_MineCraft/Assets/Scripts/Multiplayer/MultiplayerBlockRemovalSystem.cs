@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Minecraft;
 using Minecraft.Configurations;
 using Mirror;
 using UnityEngine;
@@ -49,6 +50,7 @@ namespace Minecraft.Multiplayer
 
         private readonly Dictionary<ChunkPos, Dictionary<int, BlockChangeState>> m_ServerBlockChangesByChunk = new Dictionary<ChunkPos, Dictionary<int, BlockChangeState>>();
         private readonly Dictionary<ChunkPos, Dictionary<int, BlockChangeState>> m_ClientBlockChangesByChunk = new Dictionary<ChunkPos, Dictionary<int, BlockChangeState>>();
+        private readonly HashSet<Vector3Int> m_ServerIgnitedTnts = new HashSet<Vector3Int>();
 
         private Coroutine m_WorldBindingRoutine;
         private World m_BoundWorld;
@@ -77,6 +79,7 @@ namespace Minecraft.Multiplayer
         public void StopServer()
         {
             m_ServerBlockChangesByChunk.Clear();
+            m_ServerIgnitedTnts.Clear();
             UnbindWorldCallbacks();
         }
 
@@ -121,6 +124,41 @@ namespace Minecraft.Multiplayer
             return world.RWAccessor.SetBlock(x, y, z, targetBlock, rotation, ModificationSource.PlayerAction);
         }
 
+        public bool TryIgniteTntOnServer(int x, int y, int z)
+        {
+            if (!NetworkServer.active)
+            {
+                return false;
+            }
+
+            World world = World.Active as World;
+            if (world == null || !world.Initialized || world.BlockDataTable == null)
+            {
+                return false;
+            }
+
+            if (y < 0 || y >= WorldConsts.ChunkHeight)
+            {
+                return false;
+            }
+
+            Vector3Int position = new Vector3Int(x, y, z);
+            if (m_ServerIgnitedTnts.Contains(position))
+            {
+                return false;
+            }
+
+            BlockData targetBlock = world.RWAccessor.GetBlock(x, y, z);
+            if (targetBlock == null || targetBlock.InternalName != "tnt")
+            {
+                return false;
+            }
+
+            m_ServerIgnitedTnts.Add(position);
+            targetBlock.Click(world, x, y, z);
+            return true;
+        }
+
         public void NotifyTntFuseStarted(int x, int y, int z, int blockId)
         {
             if (!NetworkServer.active)
@@ -135,6 +173,16 @@ namespace Minecraft.Multiplayer
                 Z = z,
                 BlockId = blockId
             });
+        }
+
+        public void NotifyTntFuseFinished(int x, int y, int z)
+        {
+            if (!NetworkServer.active)
+            {
+                return;
+            }
+
+            m_ServerIgnitedTnts.Remove(new Vector3Int(x, y, z));
         }
 
         private void BindWorldCallbacks()
