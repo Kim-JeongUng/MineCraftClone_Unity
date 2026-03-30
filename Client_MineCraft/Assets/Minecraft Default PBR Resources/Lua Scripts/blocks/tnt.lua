@@ -5,6 +5,7 @@ tnt = create_block_behaviour()
 local unityTime = CS.UnityEngine.Time
 local unityColor = CS.UnityEngine.Color
 local playerModification = CS.Minecraft.ModificationSource.PlayerAction
+local systemModification = CS.Minecraft.ModificationSource.InternalOrSystem
 local quaternionIdentity = CS.UnityEngine.Quaternion.identity
 local ignoreExplosionsFlag = CS.Minecraft.Configurations.BlockFlags.IgnoreExplosions
 local assetManager = CS.Minecraft.Assets.AssetManager.Instance
@@ -23,8 +24,8 @@ function tnt:init(world, block)
 
     self.water_name = "water"
     self.lava_name = "lava"
-    self.mass = 1
-    self.gravity_multiplier = 1
+    self.mass = 0
+    self.gravity_multiplier = 0
     self.air_block_data = world.BlockDataTable:GetBlock("air")
     self.pending_explosions = {}
 end
@@ -99,6 +100,9 @@ function tnt:click(x, y, z)
 
     -- 클라이언트는 시각 효과만 재생하고 월드 블록은 서버 동기화에 맡김
     print(string.format("[TNT TRACE] client click visual start key=%s pos=(%d,%d,%d)", key, x, y, z))
+    -- 서버 블록은 유지하되, 로컬에서는 중복 렌더링(위에 하나 더 생기는 것처럼 보이는 현상)을 방지하기 위해
+    -- 비주얼 엔티티 재생 중 임시로 air 처리한다. (네트워크 전파되지 않음)
+    self.world.RWAccessor:SetBlock(x, y, z, self.air_block_data, quaternionIdentity, systemModification)
     self.world.EntityManager:CreateBlockEntityAt(x, y, z, self:get_block_data())
 end
 
