@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Minecraft.Configurations;
@@ -33,6 +34,13 @@ namespace Minecraft.Multiplayer
             public int ChunkVersion;
             public int BlockId;
             public Quaternion Rotation;
+        }
+
+        public struct TntFuseStartedMessage : NetworkMessage
+        {
+            public int X;
+            public int Y;
+            public int Z;
         }
 
         private struct BlockChangeState
@@ -72,6 +80,7 @@ namespace Minecraft.Multiplayer
         {
             NetworkClient.RegisterHandler<ChunkBlockChangesSnapshotMessage>(OnClientChunkSnapshotReceived, false);
             NetworkClient.RegisterHandler<BlockChangedDeltaMessage>(OnClientBlockChangedDeltaReceived, false);
+            NetworkClient.RegisterHandler<TntFuseStartedMessage>(OnClientTntFuseStartedReceived, false);
             BindWorldCallbacks();
         }
 
@@ -107,6 +116,23 @@ namespace Minecraft.Multiplayer
             }
 
             return world.RWAccessor.SetBlock(x, y, z, targetBlock, rotation, ModificationSource.PlayerAction);
+        }
+
+        [Server]
+        public void BroadcastTntFuseStarted(int x, int y, int z)
+        {
+            if (!IsValidBlockCoordinates(x, y, z))
+            {
+                return;
+            }
+
+            Debug.Log($"[TNT TRACE] server broadcast fuse-start ({x},{y},{z})");
+            NetworkServer.SendToAll(new TntFuseStartedMessage
+            {
+                X = x,
+                Y = y,
+                Z = z
+            });
         }
 
         private void BindWorldCallbacks()
@@ -173,6 +199,11 @@ namespace Minecraft.Multiplayer
             if (!NetworkServer.active || blockChange.Block == null)
             {
                 return;
+            }
+
+            if (string.Equals(blockChange.Block.InternalName, "tnt", System.StringComparison.Ordinal) || blockChange.Block.ID == 0)
+            {
+                Debug.Log($"[TNT TRACE] server block-changed ({blockChange.X},{blockChange.Y},{blockChange.Z}) block={blockChange.Block.InternalName} source={blockChange.Source}");
             }
 
             ChunkPos chunkPos = ChunkPos.GetFromAny(blockChange.X, blockChange.Z);
@@ -332,7 +363,43 @@ namespace Minecraft.Multiplayer
                 Rotation = message.Rotation
             };
 
+            if (message.BlockId == 0)
+            {
+                Debug.Log($"[TNT TRACE] client delta air ({message.X},{message.Y},{message.Z}) chunkVer={message.ChunkVersion}");
+            }
             ApplyBlockChangeIfLoaded(message.X, message.Y, message.Z, message.BlockId, message.Rotation);
+        }
+
+        private void OnClientTntFuseStartedReceived(TntFuseStartedMessage message)
+        {
+            Debug.Log($"[TNT TRACE] client recv fuse-start ({message.X},{message.Y},{message.Z})");
+            StartCoroutine(TryStartClientTntFuseVisual(message));
+        }
+
+        private IEnumerator TryStartClientTntFuseVisual(TntFuseStartedMessage message)
+        {
+            const float timeout = 1.5f;
+            float elapsed = 0f;
+
+            while (elapsed < timeout)
+            {
+                World world = World.Active as World;
+                if (world?.RWAccessor != null && IsValidBlockCoordinates(message.X, message.Y, message.Z))
+                {
+                    BlockData block = world.RWAccessor.GetBlock(message.X, message.Y, message.Z);
+                    if (block != null && string.Equals(block.InternalName, "tnt", StringComparison.Ordinal))
+                    {
+                        Debug.Log($"[TNT TRACE] client start local fuse visual click ({message.X},{message.Y},{message.Z})");
+                        block.Click(world, message.X, message.Y, message.Z);
+                        yield break;
+                    }
+                }
+
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            Debug.LogWarning($"[TNT TRACE] client fuse-start timeout waiting TNT block ({message.X},{message.Y},{message.Z})");
         }
 
         private Dictionary<int, BlockChangeState> GetOrCreateServerChunkChanges(ChunkPos chunkPos)
@@ -416,7 +483,9 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            world.RWAccessor.SetBlock(x, y, z, block, rotation, ModificationSource.InternalOrSystem);
+            // Network-delivered authoritative block changes should be treated as important
+            // so mesh updates are not deprioritized on clients (e.g. TNT fuse blink states).
+            world.RWAccessor.SetBlock(x, y, z, block, rotation, ModificationSource.PlayerAction);
         }
 
         private static int GetSafeSnapshotCount(ChunkBlockChangesSnapshotMessage message)

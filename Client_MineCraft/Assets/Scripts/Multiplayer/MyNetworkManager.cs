@@ -306,8 +306,16 @@ namespace Minecraft.Multiplayer
                 return false;
             }
 
+            Debug.Log($"[TNT TRACE] manager click dispatch ({x},{y},{z}) block={block.InternalName}");
             block.Click(world, x, y, z);
             return true;
+        }
+
+        public void NotifyTntFuseStarted(int x, int y, int z)
+        {
+            EnsureBlockRemovalSystemReference();
+            Debug.Log($"[TNT TRACE] manager notify fuse-start ({x},{y},{z})");
+            m_BlockRemovalSystem?.BroadcastTntFuseStarted(x, y, z);
         }
 
         private void RemovePendingSpawnRecord(int connectionId)

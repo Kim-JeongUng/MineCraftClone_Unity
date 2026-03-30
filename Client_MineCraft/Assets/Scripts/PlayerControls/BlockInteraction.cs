@@ -680,6 +680,7 @@ namespace Minecraft.PlayerControls
                     {
                         if (GameModeContext.IsMultiplayer)
                         {
+                            Debug.Log($"[TNT TRACE] client request click {hit.Position} block={block?.InternalName}");
                             if (m_NetworkPlayerAdapter == null || !m_NetworkPlayerAdapter.RequestClickBlock(hit.Position))
                             {
                                 Debug.LogWarning($"[MP] Failed to send block click request for {hit.Position}.");

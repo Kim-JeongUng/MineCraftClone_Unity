@@ -3,19 +3,28 @@ local util = require "xlua.util"
 
 tnt = create_block_behaviour()
 local unityTime = CS.UnityEngine.Time
+local unityColor = CS.UnityEngine.Color
 local playerModification = CS.Minecraft.ModificationSource.PlayerAction
 local quaternionIdentity = CS.UnityEngine.Quaternion.identity
 local ignoreExplosionsFlag = CS.Minecraft.Configurations.BlockFlags.IgnoreExplosions
 local assetManager = CS.Minecraft.Assets.AssetManager.Instance
+local gameModeContext = CS.Minecraft.Multiplayer.GameModeContext
+local networkManager = CS.Mirror.NetworkManager
 local explosionEffectAssetName = "Assets/Minecraft Default PBR Resources/Effects/Explosion Effect.prefab"
 local waitTime = 3
 local explodeRadius = 5
+
+local function to_key(x, y, z)
+    return string.format("%d:%d:%d", x, y, z)
+end
 
 function tnt:init(world, block)
     tnt.base.init(self, world, block)
 
     self.water_name = "water"
     self.lava_name = "lava"
+    self.mass = 1
+    self.gravity_multiplier = 1
     self.air_block_data = world.BlockDataTable:GetBlock("air")
     self.pending_explosions = {}
 end
@@ -41,43 +50,56 @@ function tnt:place(x, y, z)
 end
 
 function tnt:click(x, y, z)
-    local key = string.format("%d:%d:%d", x, y, z)
-
+    local key = to_key(x, y, z)
     if self.pending_explosions[key] then
+        print(string.format("[TNT TRACE] click ignored (already pending) key=%s server=%s", key, tostring(gameModeContext.IsServer)))
         return
     end
 
     self.pending_explosions[key] = true
-    self.world:StartCoroutine(util.cs_generator(function()
-        local time = 0
-        local effectAsset = assetManager:LoadAsset(explosionEffectAssetName, typeof(CS.UnityEngine.GameObject))
-        local accessor = self.world.RWAccessor
-
-        while time < waitTime or not effectAsset.IsDone do
-            time = time + unityTime.deltaTime
-            coroutine.yield(nil)
+    if gameModeContext.IsServer then
+        print(string.format("[TNT TRACE] server click start key=%s pos=(%d,%d,%d)", key, x, y, z))
+        if gameModeContext.IsMultiplayer and networkManager.singleton then
+            print(string.format("[TNT TRACE] server notify fuse started key=%s", key))
+            networkManager.singleton:NotifyTntFuseStarted(x, y, z)
         end
 
-        local block = accessor:GetBlock(x, y, z)
+        self.world:StartCoroutine(util.cs_generator(function()
+            local elapsed = 0
+            local effectAsset = assetManager:LoadAsset(explosionEffectAssetName, typeof(CS.UnityEngine.GameObject))
+            local accessor = self.world.RWAccessor
 
-        -- 이미 다른 폭발로 제거된 경우 중복 처리하지 않음
-        if block and block.InternalName == self.InternalName then
-            -- 물속 폭발은 블록을 파괴하지 않음
-            if block.InternalName ~= self.water_name then
-                self:explode(x, y, z, explodeRadius, accessor)
+            while elapsed < waitTime do
+                elapsed = elapsed + unityTime.deltaTime
+                coroutine.yield(nil)
             end
 
-            accessor:SetBlock(x, y, z, self.air_block_data, quaternionIdentity, playerModification)
-        end
+            local block = accessor:GetBlock(x, y, z)
+            if block and block.InternalName == self.InternalName then
+                print(string.format("[TNT TRACE] server fuse done explode key=%s", key))
+                self:explode(x, y, z, explodeRadius, accessor)
+                print(string.format("[TNT TRACE] server set air after explode key=%s", key))
+                accessor:SetBlock(x, y, z, self.air_block_data, quaternionIdentity, playerModification)
+            else
+                print(string.format("[TNT TRACE] server fuse done but block changed key=%s block=%s", key, block and block.InternalName or "nil"))
+            end
 
-        local effect = CS.UnityEngine.Object.Instantiate(effectAsset.Asset)
-        effect.transform.position = CS.UnityEngine.Vector3(x, y, z)
+            if effectAsset.IsDone and effectAsset.Asset then
+                local effect = CS.UnityEngine.Object.Instantiate(effectAsset.Asset)
+                effect.transform.position = CS.UnityEngine.Vector3(x, y, z)
+                local particle = CS.Minecraft.Lua.LuaUtility.GetParticleSystem(effect)
+                particle:Play()
+            end
 
-        local particle = CS.Minecraft.Lua.LuaUtility.GetParticleSystem(effect)
-        particle:Play()
+            self.pending_explosions[key] = nil
+            print(string.format("[TNT TRACE] server pending cleared key=%s", key))
+        end))
+        return
+    end
 
-        self.pending_explosions[key] = nil
-    end))
+    -- 클라이언트는 시각 효과만 재생하고 월드 블록은 서버 동기화에 맡김
+    print(string.format("[TNT TRACE] client click visual start key=%s pos=(%d,%d,%d)", key, x, y, z))
+    self.world.EntityManager:CreateBlockEntityAt(x, y, z, self:get_block_data())
 end
 
 function tnt:explode(center_x, center_y, center_z, radius, accessor)
@@ -102,8 +124,30 @@ function tnt:explode(center_x, center_y, center_z, radius, accessor)
 end
 
 function tnt:entity_init(entity, context)
-    -- TNT는 블록 기반 타이머로 동작하고 블록 엔티티는 사용하지 않음
-    self.world.EntityManager:DestroyEntity(entity)
+    entity.Mass = self.mass
+    entity.GravityMultiplier = self.gravity_multiplier
+
+    local pos = entity.Position
+    context.key = to_key(pos.x, pos.y, pos.z)
+
+    entity:StartCoroutine(util.cs_generator(function()
+        local time = 0
+        print(string.format("[TNT TRACE] entity fuse visual start key=%s server=%s", context.key, tostring(gameModeContext.IsServer)))
+
+        while time < waitTime do
+            time = time + unityTime.deltaTime
+            local t = (math.cos(time * math.pi * 1.5) + 1) * 0.5
+            local color = unityColor.Lerp(unityColor.grey, unityColor.white, t)
+            entity.MaterialProperty:SetColor("_MainColor", color)
+            coroutine.yield(nil)
+        end
+
+        self.pending_explosions[context.key] = nil
+        print(string.format("[TNT TRACE] entity fuse visual end key=%s", context.key))
+        entity.EnableRendering = false
+        coroutine.yield(nil)
+        self.world.EntityManager:DestroyEntity(entity)
+    end))
 end
 
 function tnt:entity_on_collisions(entity, flags, context)
