@@ -1,15 +1,12 @@
 # Minecraft Multiplay Demo
 
-[싱글플레이 마인크래프트](https://github.com/stalomeow/MinecraftClone-Unity) 를 멀티플레이로 변경 하고있습니다.
+[싱글플레이 마인크래프트](https://github.com/stalomeow/MinecraftClone-Unity) 를 Mirror기반 멀티플레이로 변경 했습니다.
 
-**아래 이미지는 모두 실제 인게임 화면입니다.**
+**Preview** [(Youtube)](https://www.youtube.com/watch?v=8iR1QlHmbLE)
 
+![멀티플레이 GIF(1920x1080)](/Client_MineCraft/Recordings/Multiplay.gif)
 
-![인게임 스크린샷(1920x1080)](/Client_MineCraft/Recordings/Capture.png)
-
-
-![생물군계 경계(1920x1080)](/Client_MineCraft/Recordings/biome.png)
-
+![멀티플레이 스크린샷(1920x1080)](/Client_MineCraft/Recordings/Multiplay.jpg)
 
 ![클래식 박스형 집(1920x1080)](/Client_MineCraft/Recordings/house.png)
 
@@ -20,32 +17,13 @@
 
 # Features
 
-* 무한 월드, 랜덤 지형
-* 생물군계(사바나, 사막, 숲, 해변, MORE+)
-* 동굴, 광맥(다이아몬드, 석탄, 금, MORE+)
-* 조명, 앰비언트 오클루전, 그림자
-* 글로우스톤, 횃불
-* 흔들리는 나뭇잎
-* 나무
-* 반 블록(아직 병합 미지원)
-* 탄성 충돌을 지원하는 슬라임 블록(이 프로젝트는 Unity 내장 물리 시스템 대신 간단한 자체 구현 사용)
-* 폭발 가능한 TNT(파티클 효과 포함)
-* 중력 영향을 받는 모래와 자갈
-* 흐르는 물과 용암(최대 유동 칸 수 제한이 있어 물 한 칸이 월드를 전부 잠기게 하지는 않음)
-* 블록 방향(회전)
-* 낮/밤 순환
-* URP 렌더 파이프라인 + 전체 PBR 머티리얼([NVIDIA의 Minecraft PBR 텍스처 팩 지원](https://www.nvidia.cn/geforce/guides/minecraft-rtx-texturing-guide/))
-* 포스트 프로세싱 효과
-* 커스텀 가능한 리소스 팩
-* 블록/생물군계/아이템 데이터 고도 설정 가능
-* 몇 가지 ~~버그~~ 특징
-
-
-
-# Notice
-
-* 프로젝트에서 사용한 텍스처 팩은 [“마인크래프트(Minecraft)” Windows 10 RTX Beta: 물리 기반 렌더링 텍스처 Q&A 및 무료 리소스 팩 다운로드 (nvidia.cn)](https://www.nvidia.cn/geforce/news/minecraft-with-rtx-beta-your-pbr-questions-answered/)에서 받은 `RTX Vanilla Conversion`이며, 제작자는 u/TheCivilHulk입니다. 또는 [TheCivilHulk/Minecraft-RTX-Vanilla-Conversion-and-Patches (github.com)](https://github.com/TheCivilHulk/Minecraft-RTX-Vanilla-Conversion-and-Patches)에서 직접 받을 수 있습니다.
-* 비정기적으로 업데이트합니다!
+* 위치 동기화
+* 시드(맵) 동기화
+* 블럭 설치 및 파괴
+* tnt 폭파
+* 모래 블럭 중력작용
+* 슬라임블럭
+* Late Join Sync
 
 
 
@@ -53,7 +31,7 @@
 
 ## How To Play In Unity?
 
-1. SinglePlayer 씬을 엽니다
+1. Multiplay 씬을 엽니다
 2. 재생 버튼을 클릭합니다
 3. 화면의 키 안내를 따라 플레이합니다
 
@@ -260,7 +238,7 @@ end
 
 # References
 
-
+* [싱글플레이 마인크래프트](https://github.com/stalomeow/MinecraftClone-Unity)
 * [TrueCraft](https://github.com/ddevault/TrueCraft)
 * [xLua](https://github.com/Tencent/xLua)
 * [MineCase](https://github.com/dotnetGame/MineCase)
