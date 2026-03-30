@@ -66,9 +66,11 @@ namespace Minecraft.Multiplayer
 
             if (isServer)
             {
+                Debug.Log($"[TNT TRACE] request click on server directly ({position.x},{position.y},{position.z})");
                 return TryClickBlockOnServer(position.x, position.y, position.z);
             }
 
+            Debug.Log($"[TNT TRACE] send CmdClickBlock ({position.x},{position.y},{position.z})");
             CmdClickBlock(position.x, position.y, position.z);
             return true;
         }
@@ -276,6 +278,7 @@ namespace Minecraft.Multiplayer
         [Command]
         private void CmdClickBlock(int x, int y, int z)
         {
+            Debug.Log($"[TNT TRACE] server received CmdClickBlock ({x},{y},{z})");
             TryClickBlockOnServer(x, y, z);
         }
 
@@ -333,9 +336,11 @@ namespace Minecraft.Multiplayer
             MyNetworkManager manager = NetworkManager.singleton as MyNetworkManager;
             if (manager == null || !manager.TryClickBlockOnServer(x, y, z))
             {
+                Debug.LogWarning($"[TNT TRACE] TryClickBlockOnServer rejected ({x},{y},{z})");
                 return false;
             }
 
+            Debug.Log($"[TNT TRACE] TryClickBlockOnServer accepted ({x},{y},{z})");
             return true;
         }
 
