@@ -17,10 +17,10 @@ MonoBehaviour:
   WaterBlock: water
   GravelBlock: gravel
   BedrockBlock: bedrock
-  SeaLevel: 63
+  SeaLevel: 46
   CoordinateScale: 0.05
   HeightScale: 0.05
-  BiomeDepthOffSet: 0
+  BiomeDepthOffset: 0
   BiomeDepthWeight: 1
   BiomeScaleOffset: 0
   BiomeScaleWeight: 1
