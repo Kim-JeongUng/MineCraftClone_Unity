@@ -10,9 +10,6 @@ using Minecraft.Rendering;
 using UnityEngine;
 using UnityEngine.UI;
 using Physics = Minecraft.PhysicSystem.Physics;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace Minecraft.PlayerControls
 {
@@ -84,7 +81,7 @@ namespace Minecraft.PlayerControls
         [NonSerialized] private bool m_InventoryButtonsBound;
 
         private readonly Dictionary<string, Sprite> m_BlockSpriteCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
-        private const string BlockSpriteFolderAssetPath = "Assets/Minecraft Default PBR Resources/Block Sprites";
+        private const string BlockSpriteResourcesPath = "Block Sprites";
 
         private static readonly Dictionary<string, string[]> s_BlockSpriteCandidates = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
@@ -393,11 +390,7 @@ namespace Minecraft.PlayerControls
                         continue;
                     }
 
-                    Image icon = child.GetComponent<Image>();
-                    if (icon == null && child.childCount > 0)
-                    {
-                        icon = child.GetChild(0).GetComponent<Image>();
-                    }
+                    Image icon = FindInventoryIconImage(child);
 
                     bindings.Add(new InventoryButtonBinding
                     {
@@ -430,6 +423,35 @@ namespace Minecraft.PlayerControls
 
             m_InventoryButtonsBound = true;
             RefreshInventoryIcons();
+        }
+
+        private static Image FindInventoryIconImage(Transform buttonTransform)
+        {
+            if (buttonTransform == null)
+            {
+                return null;
+            }
+
+            Transform iconChild = buttonTransform.Find("Icon");
+            if (iconChild != null)
+            {
+                Image iconImage = iconChild.GetComponent<Image>();
+                if (iconImage != null)
+                {
+                    return iconImage;
+                }
+            }
+
+            if (buttonTransform.childCount > 0)
+            {
+                Image firstChildImage = buttonTransform.GetChild(0).GetComponent<Image>();
+                if (firstChildImage != null)
+                {
+                    return firstChildImage;
+                }
+            }
+
+            return buttonTransform.GetComponent<Image>();
         }
 
         private void RefreshInventoryIcons()
@@ -584,12 +606,13 @@ namespace Minecraft.PlayerControls
 
         private static Sprite LoadSpriteFromAssetFolder(string fileName)
         {
-#if UNITY_EDITOR
-            string assetPath = Path.Combine(BlockSpriteFolderAssetPath, fileName).Replace('\\', '/');
-            return AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
-#else
-            return null;
-#endif
+            string resourceName = Path.GetFileNameWithoutExtension(fileName);
+            if (string.IsNullOrEmpty(resourceName))
+            {
+                return null;
+            }
+
+            return Resources.Load<Sprite>($"{BlockSpriteResourcesPath}/{resourceName}");
         }
 
         private void DigBlock(Ray ray, IWorld world)
