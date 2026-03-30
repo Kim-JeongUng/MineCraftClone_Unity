@@ -8,6 +8,19 @@ namespace Minecraft.UI
     [DisallowMultipleComponent]
     public class UICanvasManager : MonoBehaviour
     {
+        private enum LoadingState
+        {
+            WaitingForNetwork,
+            InitializingWorld,
+            GeneratingTerrain,
+            Completed
+        }
+
+        private const string WaitingNetworkMessage = "네트워크 연결 대기 중...";
+        private const string InitializingWorldMessage = "월드 초기화 중...";
+        private const string GeneratingTerrainMessage = "지형 생성 중...";
+        private const string LoadingCompleteMessage = "로딩 완료";
+
         [Header("Panels")]
         [SerializeField] private GameObject m_GamePlayRoot;
         [SerializeField] private GameObject m_LoadingPageRoot;
@@ -37,12 +50,14 @@ namespace Minecraft.UI
         private bool m_IsReady;
         private bool m_IsCompleting;
         private bool m_HasStartedChunkLoading;
+        private LoadingState m_CurrentLoadingState;
+        private string m_LastLoadingMessage = string.Empty;
 
         private void Awake()
         {
             SetReadyState(false);
             ApplyProgressImmediate(0f);
-            SetLoadingMessage("네트워크 연결 대기 중...");
+            SetLoadingState(LoadingState.WaitingForNetwork);
         }
 
         private void Update()
@@ -59,13 +74,13 @@ namespace Minecraft.UI
             }
 
             float targetProgress = 0.1f;
-            string message = "네트워크 연결 대기 중...";
+            LoadingState loadingState = LoadingState.WaitingForNetwork;
             float progressSpeed = m_DefaultProgressSpeed;
 
             if (IsNetworkReady())
             {
                 targetProgress = 0.4f;
-                message = "월드 초기화 중...";
+                loadingState = LoadingState.InitializingWorld;
 
                 World world = World.Active as World;
                 if (world != null && world.Initialized)
@@ -79,7 +94,7 @@ namespace Minecraft.UI
                     m_ChunkLoadingElapsed += Time.unscaledDeltaTime;
                     float chunkPhaseProgress = Mathf.Clamp01(m_ChunkLoadingElapsed / m_MinChunkLoadingSeconds);
                     targetProgress = Mathf.Lerp(0.4f, 0.9f, chunkPhaseProgress);
-                    message = "지형 생성 중...";
+                    loadingState = LoadingState.GeneratingTerrain;
 
                     if (IsGroundChunkReady(world) && m_ChunkLoadingElapsed >= m_MinChunkLoadingSeconds)
                     {
@@ -97,7 +112,7 @@ namespace Minecraft.UI
 
             m_CurrentProgress = Mathf.MoveTowards(m_CurrentProgress, targetProgress, Time.unscaledDeltaTime * progressSpeed);
             ApplyProgressImmediate(m_CurrentProgress);
-            SetLoadingMessage(message);
+            SetLoadingState(loadingState);
         }
 
         private void BeginCompletion()
@@ -109,14 +124,14 @@ namespace Minecraft.UI
 
             m_IsCompleting = true;
             m_CompletionElapsed = 0f;
-            SetLoadingMessage("로딩 완료");
+            SetLoadingState(LoadingState.Completed);
         }
 
         private void UpdateCompletionState()
         {
             m_CurrentProgress = Mathf.MoveTowards(m_CurrentProgress, 1f, Time.unscaledDeltaTime * m_CompletionProgressSpeed);
             ApplyProgressImmediate(m_CurrentProgress);
-            SetLoadingMessage("로딩 완료");
+            SetLoadingState(LoadingState.Completed);
 
             if (m_CurrentProgress < 1f)
             {
@@ -194,10 +209,33 @@ namespace Minecraft.UI
 
         private void SetLoadingMessage(string message)
         {
-            if (m_LoadingText != null)
+            if (m_LoadingText != null && m_LastLoadingMessage != message)
             {
                 m_LoadingText.text = message;
+                m_LastLoadingMessage = message;
             }
+        }
+
+        private void SetLoadingState(LoadingState state)
+        {
+            if (m_CurrentLoadingState == state && !string.IsNullOrEmpty(m_LastLoadingMessage))
+            {
+                return;
+            }
+
+            m_CurrentLoadingState = state;
+            SetLoadingMessage(GetMessageForState(state));
+        }
+
+        private static string GetMessageForState(LoadingState state)
+        {
+            return state switch
+            {
+                LoadingState.InitializingWorld => InitializingWorldMessage,
+                LoadingState.GeneratingTerrain => GeneratingTerrainMessage,
+                LoadingState.Completed => LoadingCompleteMessage,
+                _ => WaitingNetworkMessage,
+            };
         }
     }
 }

@@ -172,7 +172,7 @@ namespace Minecraft.Multiplayer
 
             while (Time.unscaledTime < deadline)
             {
-                if (conn == null || !NetworkServer.connections.ContainsKey(connectionId) || conn.identity != null)
+                if (ShouldAbortSpawnPreparation(conn, connectionId))
                 {
                     RemovePendingSpawnRecord(connectionId);
                     ReleaseSpawnReservation(conn);
@@ -197,16 +197,18 @@ namespace Minecraft.Multiplayer
             }
 
             MultiplayerSpawnService.SpawnReservation reservation = m_SpawnService.ReserveSpawn(conn, world);
+            bool spawnAreaReady = false;
             while (Time.unscaledTime < deadline)
             {
-                if (conn == null || !NetworkServer.connections.ContainsKey(connectionId) || conn.identity != null)
+                if (ShouldAbortSpawnPreparation(conn, connectionId))
                 {
                     RemovePendingSpawnRecord(connectionId);
                     ReleaseSpawnReservation(conn);
                     yield break;
                 }
 
-                if (m_SpawnService.IsSpawnAreaReady(world, reservation.Position))
+                spawnAreaReady = m_SpawnService.IsSpawnAreaReady(world, reservation.Position);
+                if (spawnAreaReady)
                 {
                     break;
                 }
@@ -214,7 +216,7 @@ namespace Minecraft.Multiplayer
                 yield return null;
             }
 
-            if (!m_SpawnService.IsSpawnAreaReady(world, reservation.Position))
+            if (!spawnAreaReady)
             {
                 Debug.LogWarning($"[MP] AddPlayer aborted because spawn chunks were not ready in time. connId={connectionId}, reserved={reservation.Position}");
                 RemovePendingSpawnRecord(connectionId);
@@ -253,6 +255,13 @@ namespace Minecraft.Multiplayer
             Vector3 anchor = m_SpawnService.AnchorPosition;
             Vector3 delta = spawnPosition - anchor;
             Debug.Log($"[MP] AddPlayer complete. connId={connectionId}, player={player.name}, seed={GetAuthoritativeSeed()}, baseSpawn={m_SpawnService.BaseSpawnPosition}, anchor={anchor}, finalSpawn={spawnPosition}, deltaFromAnchor={delta}, mode={GameModeContext.Mode}");
+        }
+
+        private static bool ShouldAbortSpawnPreparation(NetworkConnectionToClient conn, int connectionId)
+        {
+            return conn == null
+                || !NetworkServer.connections.ContainsKey(connectionId)
+                || conn.identity != null;
         }
 
         private void SendWorldSettings(NetworkConnectionToClient conn, string reason)
