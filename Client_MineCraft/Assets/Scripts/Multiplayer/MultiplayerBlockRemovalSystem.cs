@@ -416,7 +416,9 @@ namespace Minecraft.Multiplayer
                 return;
             }
 
-            world.RWAccessor.SetBlock(x, y, z, block, rotation, ModificationSource.InternalOrSystem);
+            // Network-delivered authoritative block changes should be treated as important
+            // so mesh updates are not deprioritized on clients (e.g. TNT fuse blink states).
+            world.RWAccessor.SetBlock(x, y, z, block, rotation, ModificationSource.PlayerAction);
         }
 
         private static int GetSafeSnapshotCount(ChunkBlockChangesSnapshotMessage message)
