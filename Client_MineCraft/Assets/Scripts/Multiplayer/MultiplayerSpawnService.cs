@@ -33,6 +33,9 @@ namespace Minecraft.Multiplayer
         [SerializeField] [Min(1)] private int m_ClearanceAboveGround = 2;
         [SerializeField] [Min(1)] private int m_MinSpawnHeight = 4;
         [SerializeField] private bool m_UseFirstResolvedSpawnAsAnchor = true;
+        [SerializeField] [Range(0, 12)] private int m_SurfaceSearchRadius = 4;
+        [SerializeField] [Min(1)] private int m_MaxSurfaceCandidateChecks = 25;
+        [SerializeField] [Range(2, 16)] private int m_MinOpenSkyHeight = 6;
 
         private readonly Dictionary<int, SpawnReservation> m_Reservations = new Dictionary<int, SpawnReservation>();
         private Vector3 m_BaseSpawnPosition;
@@ -213,9 +216,9 @@ namespace Minecraft.Multiplayer
                 return new Vector3(candidate.x, fallbackY, candidate.z);
             }
 
-            if (TryFindHighestSafeSpawnY(world, sampleX, sampleZ, out int surfaceSafeY))
+            if (TryFindBestSurfaceSpawnNearCandidate(world, sampleX, sampleZ, out Vector3 preferredSurfaceSpawn))
             {
-                return new Vector3(candidate.x, surfaceSafeY, candidate.z);
+                return preferredSurfaceSpawn;
             }
 
             int topVisibleY = world.RWAccessor.GetTopVisibleBlockY(sampleX, sampleZ, int.MinValue);
@@ -224,21 +227,192 @@ namespace Minecraft.Multiplayer
                 int preferredSpawnY = Mathf.Max(topVisibleY + 1, m_MinSpawnHeight);
                 int maxSearchY = Mathf.Min(ChunkHeight - 4, preferredSpawnY + m_ClearanceAboveGround + 8);
 
-                if (TryFindSafeSpawnY(world, sampleX, sampleZ, preferredSpawnY, maxSearchY, out int safeY))
+                if (TryFindSafeSpawnY(world, sampleX, sampleZ, preferredSpawnY, maxSearchY, out int safeY)
+                    && IsSpawnEnvironmentValid(world, sampleX, sampleZ, safeY))
                 {
                     return new Vector3(candidate.x, safeY, candidate.z);
                 }
             }
 
             int fallbackStartY = Mathf.RoundToInt(fallbackY);
-            if (TryFindSafeSpawnY(world, sampleX, sampleZ, fallbackStartY, fallbackStartY + 6, out int fallbackSafeY))
+            if (TryFindSafeSpawnY(world, sampleX, sampleZ, fallbackStartY, fallbackStartY + 6, out int fallbackSafeY)
+                && IsSpawnEnvironmentValid(world, sampleX, sampleZ, fallbackSafeY))
             {
                 Debug.LogWarning($"[MP] SpawnService used fallback spawn height search. sample=({sampleX}, {sampleZ}), fallbackStartY={fallbackStartY}, resolvedY={fallbackSafeY}");
                 return new Vector3(candidate.x, fallbackSafeY, candidate.z);
             }
 
-            Debug.LogWarning($"[MP] SpawnService could not validate headroom. Falling back to raw Y. sample=({sampleX}, {sampleZ}), fallbackY={fallbackY}");
+            Debug.LogWarning($"[MP] SpawnService could not resolve surface-safe spawn. Using constrained fallback. sample=({sampleX}, {sampleZ}), fallbackY={fallbackY}");
             return new Vector3(candidate.x, fallbackY, candidate.z);
+        }
+
+        private bool TryFindBestSurfaceSpawnNearCandidate(World world, int centerX, int centerZ, out Vector3 spawnPosition)
+        {
+            int radius = Mathf.Max(0, m_SurfaceSearchRadius);
+            int maxChecks = Mathf.Max(1, m_MaxSurfaceCandidateChecks);
+            int checks = 0;
+            int bestScore = int.MaxValue;
+            int bestX = 0;
+            int bestZ = 0;
+            int bestY = 0;
+            bool found = false;
+
+            for (int ring = 0; ring <= radius; ring++)
+            {
+                for (int dx = -ring; dx <= ring; dx++)
+                {
+                    for (int dz = -ring; dz <= ring; dz++)
+                    {
+                        if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dz)) != ring)
+                        {
+                            continue;
+                        }
+
+                        checks++;
+                        if (checks > maxChecks)
+                        {
+                            return TryBuildBestSpawnPosition(found, bestX, bestY, bestZ, out spawnPosition);
+                        }
+
+                        int x = centerX + dx;
+                        int z = centerZ + dz;
+                        if (!TryFindSurfaceSpawnY(world, x, z, out int y))
+                        {
+                            continue;
+                        }
+
+                        int horizontalCost = dx * dx + dz * dz;
+                        int terrainCost = Mathf.Abs(y - Mathf.RoundToInt(transform.position.y));
+                        int score = (horizontalCost * 10) + terrainCost;
+
+                        if (score < bestScore)
+                        {
+                            bestScore = score;
+                            bestX = x;
+                            bestY = y;
+                            bestZ = z;
+                            found = true;
+                        }
+                    }
+                }
+            }
+
+            return TryBuildBestSpawnPosition(found, bestX, bestY, bestZ, out spawnPosition);
+        }
+
+        private static bool TryBuildBestSpawnPosition(bool found, int x, int y, int z, out Vector3 spawnPosition)
+        {
+            if (!found)
+            {
+                spawnPosition = default;
+                return false;
+            }
+
+            spawnPosition = new Vector3(x, y, z);
+            return true;
+        }
+
+        private bool TryFindSurfaceSpawnY(World world, int x, int z, out int spawnY)
+        {
+            int topVisibleY = world.RWAccessor.GetTopVisibleBlockY(x, z, int.MinValue);
+            if (topVisibleY == int.MinValue)
+            {
+                spawnY = default;
+                return false;
+            }
+
+            int candidateY = Mathf.Clamp(topVisibleY + 1, m_MinSpawnHeight, ChunkHeight - 4);
+            if (!HasStandingRoom(world, x, z, candidateY))
+            {
+                spawnY = default;
+                return false;
+            }
+
+            if (!IsSurfaceGround(world, x, z, candidateY, topVisibleY))
+            {
+                spawnY = default;
+                return false;
+            }
+
+            if (!HasMinimumOpenSky(world, x, z, candidateY))
+            {
+                spawnY = default;
+                return false;
+            }
+
+            if (!IsSpawnEnvironmentValid(world, x, z, candidateY))
+            {
+                spawnY = default;
+                return false;
+            }
+
+            spawnY = candidateY;
+            return true;
+        }
+
+        private bool IsSurfaceGround(World world, int x, int z, int spawnY, int topVisibleY)
+        {
+            if (topVisibleY != spawnY - 1)
+            {
+                return false;
+            }
+
+            BlockData topBlock = world.RWAccessor.GetBlock(x, topVisibleY, z);
+            return IsGroundBlock(topBlock);
+        }
+
+        private bool HasMinimumOpenSky(World world, int x, int z, int spawnY)
+        {
+            int maxY = Mathf.Min(ChunkHeight - 1, spawnY + Mathf.Max(2, m_MinOpenSkyHeight));
+            for (int y = spawnY; y <= maxY; y++)
+            {
+                BlockData block = world.RWAccessor.GetBlock(x, y, z);
+                if (!IsEmptyForSpawn(block))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private bool IsSpawnEnvironmentValid(World world, int x, int z, int spawnY)
+        {
+            if (!IsFluidFree(world.RWAccessor.GetBlock(x, spawnY - 1, z)))
+            {
+                return false;
+            }
+
+            if (!IsFluidFree(world.RWAccessor.GetBlock(x, spawnY, z))
+                || !IsFluidFree(world.RWAccessor.GetBlock(x, spawnY + 1, z))
+                || !IsFluidFree(world.RWAccessor.GetBlock(x, spawnY + 2, z)))
+            {
+                return false;
+            }
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    if (dx == 0 && dz == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!IsFluidFree(world.RWAccessor.GetBlock(x + dx, spawnY - 1, z + dz))
+                        || !IsFluidFree(world.RWAccessor.GetBlock(x + dx, spawnY, z + dz)))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        private static bool IsFluidFree(BlockData block)
+        {
+            return block == null || block.PhysicState != PhysicState.Fluid;
         }
 
         private bool TryFindHighestSafeSpawnY(World world, int x, int z, out int safeY)
