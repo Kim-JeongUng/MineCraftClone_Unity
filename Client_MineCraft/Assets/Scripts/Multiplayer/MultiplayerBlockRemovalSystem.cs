@@ -387,12 +387,12 @@ namespace Minecraft.Multiplayer
                 if (world?.RWAccessor != null && IsValidBlockCoordinates(message.X, message.Y, message.Z))
                 {
                     BlockData block = world.RWAccessor.GetBlock(message.X, message.Y, message.Z);
-                    if (block != null && string.Equals(block.InternalName, "tnt", StringComparison.Ordinal))
-                    {
-                        Debug.Log($"[TNT TRACE] client start local fuse visual click ({message.X},{message.Y},{message.Z})");
-                        block.Click(world, message.X, message.Y, message.Z);
-                        yield break;
-                    }
+            if (block != null && string.Equals(block.InternalName, "tnt", StringComparison.Ordinal))
+            {
+                Debug.Log($"[TNT TRACE] client start local fuse visual click ({message.X},{message.Y},{message.Z})");
+                TntVisualDispatchContext.InvokeVisualOnlyClick(block, world, message.X, message.Y, message.Z);
+                yield break;
+            }
                 }
 
                 elapsed += Time.deltaTime;

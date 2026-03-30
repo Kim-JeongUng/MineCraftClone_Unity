@@ -10,6 +10,7 @@ local ignoreExplosionsFlag = CS.Minecraft.Configurations.BlockFlags.IgnoreExplos
 local assetManager = CS.Minecraft.Assets.AssetManager.Instance
 local gameModeContext = CS.Minecraft.Multiplayer.GameModeContext
 local networkManager = CS.Mirror.NetworkManager
+local tntVisualDispatchContext = CS.Minecraft.Multiplayer.TntVisualDispatchContext
 local explosionEffectAssetName = "Assets/Minecraft Default PBR Resources/Effects/Explosion Effect.prefab"
 local waitTime = 3
 local explodeRadius = 5
@@ -26,7 +27,8 @@ function tnt:init(world, block)
     self.mass = 0
     self.gravity_multiplier = 0
     self.air_block_data = world.BlockDataTable:GetBlock("air")
-    self.pending_explosions = {}
+    self.pending_authoritative = {}
+    self.pending_visual = {}
 end
 
 function tnt:is_lava(x, y, z, accessor)
@@ -51,12 +53,20 @@ end
 
 function tnt:click(x, y, z)
     local key = to_key(x, y, z)
-    if self.pending_explosions[key] then
-        print(string.format("[TNT TRACE] click ignored (already pending) key=%s server=%s", key, tostring(gameModeContext.IsServer)))
+    local isVisualOnlyDispatch = tntVisualDispatchContext and tntVisualDispatchContext.IsVisualOnlyDispatch
+    local shouldRunVisualOnly = isVisualOnlyDispatch or not gameModeContext.IsServer
+
+    if shouldRunVisualOnly then
+        self:start_fuse_visual_only(x, y, z)
         return
     end
 
-    self.pending_explosions[key] = true
+    if self.pending_authoritative[key] then
+        print(string.format("[TNT TRACE] authoritative click ignored (already pending) key=%s", key))
+        return
+    end
+
+    self.pending_authoritative[key] = true
     if gameModeContext.IsServer then
         print(string.format("[TNT TRACE] server click start key=%s pos=(%d,%d,%d)", key, x, y, z))
         if gameModeContext.IsMultiplayer and networkManager.singleton then
@@ -91,14 +101,22 @@ function tnt:click(x, y, z)
                 particle:Play()
             end
 
-            self.pending_explosions[key] = nil
-            print(string.format("[TNT TRACE] server pending cleared key=%s", key))
+            self.pending_authoritative[key] = nil
+            print(string.format("[TNT TRACE] server authoritative pending cleared key=%s", key))
         end))
         return
     end
+end
 
-    -- 클라이언트는 시각 효과만 재생하고 월드 블록은 서버 동기화에 맡김
-    print(string.format("[TNT TRACE] client click visual start key=%s pos=(%d,%d,%d)", key, x, y, z))
+function tnt:start_fuse_visual_only(x, y, z)
+    local key = to_key(x, y, z)
+    if self.pending_visual[key] then
+        print(string.format("[TNT TRACE] visual click ignored (already pending) key=%s", key))
+        return
+    end
+
+    self.pending_visual[key] = true
+    print(string.format("[TNT TRACE] client visual-only fuse start key=%s pos=(%d,%d,%d)", key, x, y, z))
     self.world.EntityManager:CreateBlockEntityAt(x, y, z, self:get_block_data())
 end
 
@@ -142,7 +160,7 @@ function tnt:entity_init(entity, context)
             coroutine.yield(nil)
         end
 
-        self.pending_explosions[context.key] = nil
+        self.pending_visual[context.key] = nil
         print(string.format("[TNT TRACE] entity fuse visual end key=%s", context.key))
         entity.EnableRendering = false
         coroutine.yield(nil)
