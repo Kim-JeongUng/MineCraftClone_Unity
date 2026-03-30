@@ -35,6 +35,13 @@ namespace Minecraft.Multiplayer
             public Quaternion Rotation;
         }
 
+        public struct TntFuseStartedMessage : NetworkMessage
+        {
+            public int X;
+            public int Y;
+            public int Z;
+        }
+
         private struct BlockChangeState
         {
             public int BlockId;
@@ -72,6 +79,7 @@ namespace Minecraft.Multiplayer
         {
             NetworkClient.RegisterHandler<ChunkBlockChangesSnapshotMessage>(OnClientChunkSnapshotReceived, false);
             NetworkClient.RegisterHandler<BlockChangedDeltaMessage>(OnClientBlockChangedDeltaReceived, false);
+            NetworkClient.RegisterHandler<TntFuseStartedMessage>(OnClientTntFuseStartedReceived, false);
             BindWorldCallbacks();
         }
 
@@ -107,6 +115,22 @@ namespace Minecraft.Multiplayer
             }
 
             return world.RWAccessor.SetBlock(x, y, z, targetBlock, rotation, ModificationSource.PlayerAction);
+        }
+
+        [Server]
+        public void BroadcastTntFuseStarted(int x, int y, int z)
+        {
+            if (!IsValidBlockCoordinates(x, y, z))
+            {
+                return;
+            }
+
+            NetworkServer.SendToAll(new TntFuseStartedMessage
+            {
+                X = x,
+                Y = y,
+                Z = z
+            });
         }
 
         private void BindWorldCallbacks()
@@ -333,6 +357,28 @@ namespace Minecraft.Multiplayer
             };
 
             ApplyBlockChangeIfLoaded(message.X, message.Y, message.Z, message.BlockId, message.Rotation);
+        }
+
+        private void OnClientTntFuseStartedReceived(TntFuseStartedMessage message)
+        {
+            World world = World.Active as World;
+            if (world?.RWAccessor == null)
+            {
+                return;
+            }
+
+            if (!IsValidBlockCoordinates(message.X, message.Y, message.Z))
+            {
+                return;
+            }
+
+            BlockData block = world.RWAccessor.GetBlock(message.X, message.Y, message.Z);
+            if (block == null || !string.Equals(block.InternalName, "tnt", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            block.Click(world, message.X, message.Y, message.Z);
         }
 
         private Dictionary<int, BlockChangeState> GetOrCreateServerChunkChanges(ChunkPos chunkPos)

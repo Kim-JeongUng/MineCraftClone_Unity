@@ -310,6 +310,12 @@ namespace Minecraft.Multiplayer
             return true;
         }
 
+        public void NotifyTntFuseStarted(int x, int y, int z)
+        {
+            EnsureBlockRemovalSystemReference();
+            m_BlockRemovalSystem?.BroadcastTntFuseStarted(x, y, z);
+        }
+
         private void RemovePendingSpawnRecord(int connectionId)
         {
             if (connectionId >= 0)
