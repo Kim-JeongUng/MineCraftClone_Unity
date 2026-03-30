@@ -76,7 +76,18 @@ namespace Minecraft.Entities
 
         private NetworkPlayerAdapter m_NetworkPlayerAdapter;
 
+        private void Awake()
+        {
+            if (m_CharacterAnimator == null)
+            {
+                m_CharacterAnimator = GetComponentInChildren<Animator>(true);
+            }
 
+            if (m_NetworkPlayerAdapter == null)
+            {
+                m_NetworkPlayerAdapter = GetComponent<NetworkPlayerAdapter>();
+            }
+        }
         protected override void Start()
         {
             base.Start();
@@ -100,11 +111,9 @@ namespace Minecraft.Entities
             m_Camera = GetComponentInChildren<Camera>();
             m_CameraTransform = m_Camera != null ? m_Camera.transform : null;
             m_FluidInteractor = GetComponent<FluidInteractor>();
-            m_NetworkPlayerAdapter = GetComponent<NetworkPlayerAdapter>();
-            if (m_CharacterAnimator == null)
-            {
-                m_CharacterAnimator = GetComponentInChildren<Animator>(true);
-            }
+            
+            m_NetworkPlayerAdapter ??= GetComponent<NetworkPlayerAdapter>();
+            m_CharacterAnimator ??= GetComponentInChildren<Animator>(true);
 
             if (m_CameraTransform != null)
             {
