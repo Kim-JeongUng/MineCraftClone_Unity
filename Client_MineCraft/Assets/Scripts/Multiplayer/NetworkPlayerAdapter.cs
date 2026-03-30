@@ -22,6 +22,8 @@ namespace Minecraft.Multiplayer
         private bool m_HasBoundLocalWorldReferences;
         private float m_LastSyncedMoveAnimationSpeed = -1f;
         private bool m_LastSyncedDigAnimationState;
+        private UICanvasManager m_CachedCanvasManager;
+        private BlockInteraction m_CachedBlockInteraction;
 
         private bool IsOwnedLocally => isLocalPlayer || isOwned;
 
@@ -116,14 +118,12 @@ namespace Minecraft.Multiplayer
 
         private void BindCanvasHandBlockUI()
         {
-            BlockInteraction blockInteraction = GetComponentInChildren<BlockInteraction>(true);
-            if (blockInteraction == null)
+            if (!TryGetBlockInteraction(out BlockInteraction blockInteraction))
             {
                 return;
             }
 
-            UICanvasManager uiCanvasManager = FindObjectOfType<UICanvasManager>(true);
-            if (uiCanvasManager == null)
+            if (!TryGetCanvasManager(out UICanvasManager uiCanvasManager))
             {
                 return;
             }
@@ -139,7 +139,6 @@ namespace Minecraft.Multiplayer
         private void ApplyLocalState(bool local)
         {
             SetLayerRecursively(gameObject, local ? LocalPlayerLayer : RemotePlayerLayer);
-
             if (m_PlayerEntity != null)
             {
                 m_PlayerEntity.enabled = local;
@@ -180,6 +179,28 @@ namespace Minecraft.Multiplayer
             {
                 children[i].gameObject.layer = layer;
             }
+        }
+
+        private bool TryGetCanvasManager(out UICanvasManager canvasManager)
+        {
+            if (m_CachedCanvasManager == null)
+            {
+                m_CachedCanvasManager = FindObjectOfType<UICanvasManager>(true);
+            }
+
+            canvasManager = m_CachedCanvasManager;
+            return canvasManager != null;
+        }
+
+        private bool TryGetBlockInteraction(out BlockInteraction blockInteraction)
+        {
+            if (m_CachedBlockInteraction == null)
+            {
+                m_CachedBlockInteraction = GetComponentInChildren<BlockInteraction>(true);
+            }
+
+            blockInteraction = m_CachedBlockInteraction;
+            return blockInteraction != null;
         }
 
         public void SyncMoveAnimation(float moveSpeed)
